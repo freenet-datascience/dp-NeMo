@@ -1,0 +1,20 @@
+#
+# This example Dockerfile illustrates a method to install
+# additional packages on top of NVIDIA's PyTorch container image.
+#
+# To use this Dockerfile, use the `docker build` command.
+# See https://docs.docker.com/engine/reference/builder/
+# for more information.
+#
+# Magnus: This works, but does not yet include the pytorch audio installation
+FROM nvcr.io/nvidia/pytorch:22.05-py3
+
+# 
+COPY reinstall.sh /tmp/
+COPY setup.cfg /tmp/
+COPY setup.py  /tmp/
+COPY nemo /tmp/nemo/
+COPY requirements /tmp/requirements/
+WORKDIR /tmp/
+RUN ./reinstall.sh
+WORKDIR /workspace/
