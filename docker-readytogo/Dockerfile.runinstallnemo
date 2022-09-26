@@ -18,3 +18,11 @@ COPY requirements /tmp/requirements/
 WORKDIR /tmp/
 RUN ./reinstall.sh
 WORKDIR /workspace/
+
+# after this line we only install things required for training language models
+RUN apt-get update
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get -yq install swig build-essential libboost-all-dev cmake zlib1g-dev libbz2-dev liblzma-dev
+WORKDIR /workspace/NeMo/scripts/asr_language_modeling/ngram_lm/decoders
+CMD [ "python3.8", "./setup.py", "install", "--num_processes 4" ]
+# WORKDIR /workspace/NeMo/scripts/asr_language_modeling/ngram_lm
