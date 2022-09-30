@@ -174,3 +174,6 @@ examples/neural_graphs/*.yml
 .hydra/
 nemo_experiments/
 
+# voice file uploads for testing
+audio/left/
+
