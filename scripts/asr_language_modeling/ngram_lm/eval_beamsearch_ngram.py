@@ -56,6 +56,16 @@ import nemo
 import nemo.collections.asr as nemo_asr
 from nemo.utils import logging
 
+def replaceSoundsLike(connection, inputText):
+    line_count = 0
+    for row in c:
+        if row[0] != row[1]:
+            firstSoundsLike = row[1].split(',')[0]
+            new_text = inputText.replace(firstSoundsLike, row[0])
+            if new_text != inputText:
+                logging.info("It was " + firstSoundsLike + " now it is " + row[0])
+                inputText = new_text
+    return(inputText)
 
 def beam_search_eval(
     all_probs,
@@ -69,6 +79,7 @@ def beam_search_eval(
     beam_width=128,
     beam_batch_size=128,
     progress_bar=True,
+    csvConnection=None
 ):
     # creating the beam search decoder
     beam_search_lm = nemo_asr.modules.BeamSearchDecoderWithLM(
@@ -116,6 +127,8 @@ def beam_search_eval(
                     pred_text = ids_to_text_func([ord(c) - TOKEN_OFFSET for c in candidate[1]])
                 else:
                     pred_text = candidate[1]
+                if csvConnection != None:
+                    pred_text = replaceSoundsLike(csvConnection, pred_text)
                 pred_split_w = pred_text.split()
                 wer_dist = editdistance.eval(target_split_w, pred_split_w)
                 pred_split_c = list(pred_text)
@@ -160,6 +173,8 @@ def beam_search_eval(
     logging.info(f"=================================================================================")
 
 
+
+    
 def main():
     parser = argparse.ArgumentParser(
         description='Evaluate an ASR model with beam search decoding and n-gram KenLM language model.'
@@ -300,14 +315,7 @@ def main():
         pred_text = asr_model._wer.decoding.ctc_decoder_predictions_tensor(preds_tensor)[0][0]
         
         if c != None:
-            line_count = 0
-            for row in c:
-                if row[0] != row[1]:
-                    firstSoundsLike = row[1].split(',')[0]
-                    new_text = pred_text.replace(firstSoundsLike, row[0])
-                    if new_text != pred_text:
-                        logging.info("It was " + firstSoundsLike + " now it is " + row[0])
-                    pred_text = new_text
+            pred_text = replaceSoundsLike(c, pred_text)
 
         pred_split_w = pred_text.split()
         target_split_w = target_transcripts[batch_idx].split()
@@ -382,6 +390,7 @@ def main():
                 beam_beta=hp["beam_beta"],
                 beam_batch_size=args.beam_batch_size,
                 progress_bar=True,
+                csvConnection = c
             )
 
 
