@@ -27,6 +27,7 @@
 #                                         --beam_beta <list of the beam betas> \
 #                                         --preds_output_folder <optional folder to store the predictions> \
 #                                         --decoding_mode beamsearch_ngram
+#                                         --sounds_like_csv <optional csv to convert the result scripts>
 #                                         ...
 #
 # You may find more info on how to use this script at:
