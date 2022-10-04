@@ -57,16 +57,18 @@ import nemo
 import nemo.collections.asr as nemo_asr
 from nemo.utils import logging
 
-def replaceSoundsLike(connection, inputText):
+def replaceSoundsLike(soundsLikeList, inputText):
     line_count = 0
     result_text = inputText
-    for row in connection:
+    for row in soundsLikeList:
         if row[0] != row[1]:
             firstSoundsLike = row[1].split(',')[0]
             new_text = re.sub("\\b" + firstSoundsLike + "\\b",row[0],result_text)
             if new_text != result_text:
                 logging.info("It was " + firstSoundsLike + " now it is " + row[0])
             result_text = new_text
+    if "freet" in result_text:
+        logging.info("we did not replace freet in replaceSoundsLike")
     return(result_text)
 
 def beam_search_eval(
@@ -81,7 +83,7 @@ def beam_search_eval(
     beam_width=128,
     beam_batch_size=128,
     progress_bar=True,
-    csvConnection=None
+    soundsLikeList=None
 ):
     # creating the beam search decoder
     beam_search_lm = nemo_asr.modules.BeamSearchDecoderWithLM(
@@ -129,8 +131,10 @@ def beam_search_eval(
                     pred_text = ids_to_text_func([ord(c) - TOKEN_OFFSET for c in candidate[1]])
                 else:
                     pred_text = candidate[1]
-                if csvConnection is not None:
-                    pred_text = replaceSoundsLike(csvConnection, pred_text)
+                if soundsLikeList is not None:
+                    pred_text = replaceSoundsLike(soundsLikeList, pred_text)
+                if "freet" in pred_text:
+                    logging.info("freet exists post as pred_text")
                 pred_split_w = pred_text.split()
                 wer_dist = editdistance.eval(target_split_w, pred_split_w)
                 pred_split_c = list(pred_text)
@@ -145,6 +149,8 @@ def beam_search_eval(
 
                 score = candidate[0]
                 if preds_output_file:
+                    if "freet" in pred_text:
+                        logging.info("freet exists right before we write the file")
                     out_file.write('{}\t{}\n'.format(pred_text, score))
             wer_dist_best += wer_dist_min
             cer_dist_best += cer_dist_min
@@ -302,12 +308,13 @@ def main():
     chars_count = 0
     
     f = None
-    c = None
+    soundsLikeList = None
     if args.sounds_like_csv == None:
         logging.info(f"No csv for conversion has been given")
     else:
         f = open(args.sounds_like_csv)
         c = csv.reader(f, delimiter = ';')
+        soundsLikeList = list(c)
         logging.info(f"Loading the csv for conversion from '{args.sounds_like_csv}' ...")
     
     for batch_idx, probs in enumerate(all_probs):
@@ -315,8 +322,8 @@ def main():
         preds_tensor = torch.tensor(preds, device='cpu').unsqueeze(0)
         pred_text = asr_model._wer.decoding.ctc_decoder_predictions_tensor(preds_tensor)[0][0]
         
-        if c is not None:
-            pred_text = replaceSoundsLike(c, pred_text)
+        if soundsLikeList is not None:
+            pred_text = replaceSoundsLike(soundsLikeList, pred_text)
 
         pred_split_w = pred_text.split()
         target_split_w = target_transcripts[batch_idx].split()
@@ -391,7 +398,7 @@ def main():
                 beam_beta=hp["beam_beta"],
                 beam_batch_size=args.beam_batch_size,
                 progress_bar=True,
-                csvConnection = c
+                soundsLikeList = soundsLikeList
             )
 
 
