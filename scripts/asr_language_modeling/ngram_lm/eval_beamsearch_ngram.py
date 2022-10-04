@@ -43,6 +43,7 @@ import json
 import os
 import pickle
 import csv
+import re
 from pathlib import Path
 
 import editdistance
@@ -58,14 +59,15 @@ from nemo.utils import logging
 
 def replaceSoundsLike(connection, inputText):
     line_count = 0
-    for row in c:
+    result_text = inputText
+    for row in connection:
         if row[0] != row[1]:
             firstSoundsLike = row[1].split(',')[0]
-            new_text = inputText.replace(firstSoundsLike, row[0])
-            if new_text != inputText:
+            new_text = re.sub("\\b" + firstSoundsLike + "\\b",row[0],editor)
+            if new_text != result_text:
                 logging.info("It was " + firstSoundsLike + " now it is " + row[0])
-                inputText = new_text
-    return(inputText)
+            result_text = new_text
+    return(result_text)
 
 def beam_search_eval(
     all_probs,
@@ -133,7 +135,6 @@ def beam_search_eval(
                 wer_dist = editdistance.eval(target_split_w, pred_split_w)
                 pred_split_c = list(pred_text)
                 cer_dist = editdistance.eval(target_split_c, pred_split_c)
-
                 wer_dist_min = min(wer_dist_min, wer_dist)
                 cer_dist_min = min(cer_dist_min, cer_dist)
 
@@ -306,7 +307,7 @@ def main():
         logging.info(f"No csv for conversion has been given")
     else:
         f = open(args.sounds_like_csv)
-        c = csv.reader(f)
+        c = csv.reader(f, delimiter = ';')
         logging.info(f"Loading the csv for conversion from '{args.sounds_like_csv}' ...")
     
     for batch_idx, probs in enumerate(all_probs):
