@@ -42,6 +42,7 @@ import contextlib
 import json
 import os
 import pickle
+import csv
 from pathlib import Path
 
 import editdistance
@@ -284,9 +285,13 @@ def main():
     words_count = 0
     chars_count = 0
     
+    f = None
+    c = None
     if args.sounds_like_csv == None:
         logging.info(f"No csv for conversion has been given")
     else:
+        f = open(args.sounds_like_csv)
+        c = csv.reader(f)
         logging.info(f"Loading the csv for conversion from '{args.sounds_like_csv}' ...")
     
     for batch_idx, probs in enumerate(all_probs):
@@ -294,18 +299,15 @@ def main():
         preds_tensor = torch.tensor(preds, device='cpu').unsqueeze(0)
         pred_text = asr_model._wer.decoding.ctc_decoder_predictions_tensor(preds_tensor)[0][0]
         
-        if args.sounds_like_csv != None:
-            with open(args.sounds_like_csv) as csv_file:
-                csv_reader = csv.reader(csv_file, delimiter=';')
-                line_count = 0
-                for row in csv_reader:
-                    if line_count == 0:
-                        line_count += 1
-                    else:
-                        if row[0] != row[1]:
-                            firstSoundsLike = row[1].split(',')[0]
-                            pred_text = pred_text.replace(firstSoundsLike, row[0])
-                            line_count += 1
+        if c != None:
+            line_count = 0
+            for row in c:
+                if row[0] != row[1]:
+                    firstSoundsLike = row[1].split(',')[0]
+                    new_text = pred_text.replace(firstSoundsLike, row[0])
+                    if new_text != pred_text:
+                        logging.info("It was " + firstSoundsLike + " now it is " + row[0])
+                    pred_text = new_text
 
         pred_split_w = pred_text.split()
         target_split_w = target_transcripts[batch_idx].split()
