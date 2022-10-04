@@ -63,7 +63,7 @@ def replaceSoundsLike(connection, inputText):
     for row in connection:
         if row[0] != row[1]:
             firstSoundsLike = row[1].split(',')[0]
-            new_text = re.sub("\\b" + firstSoundsLike + "\\b",row[0],editor)
+            new_text = re.sub("\\b" + firstSoundsLike + "\\b",row[0],result_text)
             if new_text != result_text:
                 logging.info("It was " + firstSoundsLike + " now it is " + row[0])
             result_text = new_text
@@ -129,7 +129,7 @@ def beam_search_eval(
                     pred_text = ids_to_text_func([ord(c) - TOKEN_OFFSET for c in candidate[1]])
                 else:
                     pred_text = candidate[1]
-                if csvConnection != None:
+                if csvConnection is not None:
                     pred_text = replaceSoundsLike(csvConnection, pred_text)
                 pred_split_w = pred_text.split()
                 wer_dist = editdistance.eval(target_split_w, pred_split_w)
@@ -315,7 +315,7 @@ def main():
         preds_tensor = torch.tensor(preds, device='cpu').unsqueeze(0)
         pred_text = asr_model._wer.decoding.ctc_decoder_predictions_tensor(preds_tensor)[0][0]
         
-        if c != None:
+        if c is not None:
             pred_text = replaceSoundsLike(c, pred_text)
 
         pred_split_w = pred_text.split()
