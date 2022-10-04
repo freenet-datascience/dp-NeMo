@@ -64,11 +64,7 @@ def replaceSoundsLike(soundsLikeList, inputText):
         if row[0] != row[1]:
             firstSoundsLike = row[1].split(',')[0]
             new_text = re.sub("\\b" + firstSoundsLike + "\\b",row[0],result_text)
-            if new_text != result_text:
-                logging.info("It was " + firstSoundsLike + " now it is " + row[0])
             result_text = new_text
-    if "freet" in result_text:
-        logging.info("we did not replace freet in replaceSoundsLike")
     return(result_text)
 
 def beam_search_eval(
@@ -133,8 +129,6 @@ def beam_search_eval(
                     pred_text = candidate[1]
                 if soundsLikeList is not None:
                     pred_text = replaceSoundsLike(soundsLikeList, pred_text)
-                if "freet" in pred_text:
-                    logging.info("freet exists post as pred_text")
                 pred_split_w = pred_text.split()
                 wer_dist = editdistance.eval(target_split_w, pred_split_w)
                 pred_split_c = list(pred_text)
@@ -149,8 +143,6 @@ def beam_search_eval(
 
                 score = candidate[0]
                 if preds_output_file:
-                    if "freet" in pred_text:
-                        logging.info("freet exists right before we write the file")
                     out_file.write('{}\t{}\n'.format(pred_text, score))
             wer_dist_best += wer_dist_min
             cer_dist_best += cer_dist_min
