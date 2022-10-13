@@ -27,6 +27,7 @@
 #                                         --beam_beta <list of the beam betas> \
 #                                         --preds_output_folder <optional folder to store the predictions> \
 #                                         --decoding_mode beamsearch_ngram
+#                                         --sounds_like_csv <optional csv to convert the result scripts>
 #                                         ...
 #
 # You may find more info on how to use this script at:
@@ -41,6 +42,8 @@ import contextlib
 import json
 import os
 import pickle
+import csv
+import re
 from pathlib import Path
 
 import editdistance
@@ -54,6 +57,15 @@ import nemo
 import nemo.collections.asr as nemo_asr
 from nemo.utils import logging
 
+def replaceSoundsLike(soundsLikeList, inputText):
+    line_count = 0
+    result_text = inputText
+    for row in soundsLikeList:
+        if row[0] != row[1]:
+            firstSoundsLike = row[1].split(',')[0]
+            new_text = re.sub("\\b" + firstSoundsLike + "\\b",row[0],result_text)
+            result_text = new_text
+    return(result_text)
 
 def beam_search_eval(
     all_probs,
@@ -67,6 +79,7 @@ def beam_search_eval(
     beam_width=128,
     beam_batch_size=128,
     progress_bar=True,
+    soundsLikeList=None
 ):
     # creating the beam search decoder
     beam_search_lm = nemo_asr.modules.BeamSearchDecoderWithLM(
@@ -114,11 +127,12 @@ def beam_search_eval(
                     pred_text = ids_to_text_func([ord(c) - TOKEN_OFFSET for c in candidate[1]])
                 else:
                     pred_text = candidate[1]
+                if soundsLikeList is not None:
+                    pred_text = replaceSoundsLike(soundsLikeList, pred_text)
                 pred_split_w = pred_text.split()
                 wer_dist = editdistance.eval(target_split_w, pred_split_w)
                 pred_split_c = list(pred_text)
                 cer_dist = editdistance.eval(target_split_c, pred_split_c)
-
                 wer_dist_min = min(wer_dist_min, wer_dist)
                 cer_dist_min = min(cer_dist_min, cer_dist)
 
@@ -158,6 +172,8 @@ def beam_search_eval(
     logging.info(f"=================================================================================")
 
 
+
+    
 def main():
     parser = argparse.ArgumentParser(
         description='Evaluate an ASR model with beam search decoding and n-gram KenLM language model.'
@@ -218,6 +234,11 @@ def main():
     parser.add_argument(
         "--beam_batch_size", default=128, type=int, help="The batch size to be used for beam search decoding"
     )
+    
+    parser.add_argument(
+        "--sounds_like_csv", default=None, type=str, help="The csv in which we convert the result text from 'soundsLike' form to 'result' form. Do not set to skip conversion."
+    )
+    
     args = parser.parse_args()
 
     if args.nemo_model_file.endswith('.nemo'):
@@ -277,10 +298,24 @@ def main():
     cer_dist_greedy = 0
     words_count = 0
     chars_count = 0
+    
+    f = None
+    soundsLikeList = None
+    if args.sounds_like_csv == None:
+        logging.info(f"No csv for conversion has been given")
+    else:
+        f = open(args.sounds_like_csv)
+        c = csv.reader(f, delimiter = ';')
+        soundsLikeList = list(c)
+        logging.info(f"Loading the csv for conversion from '{args.sounds_like_csv}' ...")
+    
     for batch_idx, probs in enumerate(all_probs):
         preds = np.argmax(probs, axis=1)
         preds_tensor = torch.tensor(preds, device='cpu').unsqueeze(0)
         pred_text = asr_model._wer.decoding.ctc_decoder_predictions_tensor(preds_tensor)[0][0]
+        
+        if soundsLikeList is not None:
+            pred_text = replaceSoundsLike(soundsLikeList, pred_text)
 
         pred_split_w = pred_text.split()
         target_split_w = target_transcripts[batch_idx].split()
@@ -355,8 +390,10 @@ def main():
                 beam_beta=hp["beam_beta"],
                 beam_batch_size=args.beam_batch_size,
                 progress_bar=True,
+                soundsLikeList = soundsLikeList
             )
 
 
 if __name__ == '__main__':
     main()
+
