@@ -42,12 +42,14 @@ timestampPath = options.timestamps
 manifestPath = options.manifest
 outputPath = options.output
 folderPath = options.folderJson
-jOffsetLimit = options.limit
+jOffsetLimit = int(options.limit)
 # eval_beamsearch_ngram.txt
 # nemo_voice.json
 
 goodTxt = re.sub(r'-[0-9.]*\b', "", Path(goodPath).read_text())
-goodChoices = goodTxt.split("\n")
+goodChoices = [x for x in goodTxt.split("\n") if x != ""]
+
+jsonPaths = []
 
 if timestampPath == manifestPath == None:
 	print("Error. Use -t (--timestamps) OR -m (--manifest), not neither.")
@@ -57,17 +59,18 @@ elif timestampPath is not None and manifestPath is not None:
 	goodChoice = [] # we do nothing.
 elif timestampPath is not None:
 	goodChoices = goodChoices[0]
+	jsonPaths = [timestampPath]
 	print("Taking the first row of -g (--good) and matching it to timestampPath")
 elif manifestPath is not None:
+	print("Good Choices count " + str(len(goodChoices)))
 	manifestLines = Path(manifestPath).read_text().split("\n")
-	print(manifestLines)
-	print(" ----- ")
-	wavPaths = [re.findall(r".*\.wav", x)[0].split('"')[-1] for x in manifestLines if re.match(r".*\.wav", x) is not None]
-	#print(wavPaths)
-	jsonPaths = [os.path.join(folderPath, os.path.basename(x.replace(".wav", ".json"))) for x in wavPaths]
-	print(jsonPaths)
-	goodChoices = []
 
+	wavPaths = [re.findall(r".*\.wav", x)[0].split('"')[-1] for x in manifestLines if re.match(r".*\.wav", x) is not None]
+	print("Wav Paths in Manifest line count " + str(len(wavPaths)))
+	jsonPaths = [os.path.join(folderPath, os.path.basename(x.replace(".wav", ".json"))) for x in wavPaths]
+
+	#print(jsonPaths)
+	print("Using the paths from -m (--manifest) and -f (--folderJson).")
 
 if not os.path.exists(outputPath):
    os.makedirs(outputPath)
@@ -76,6 +79,8 @@ if not os.path.exists(outputPath):
 for (lineIndex, goodChoice) in enumerate(goodChoices):
 	goodWords = goodChoice.split(" ")
 
+	# print("liney is " + str(len(goodChoices)) + " out of " + str(len(jsonPaths)))
+	timestampPath = jsonPaths[lineIndex] # we use the matching line
 	fJson = open(timestampPath)
 	badWordObjs = json.load(fJson)['words']
 	j = 0
@@ -89,14 +94,15 @@ for (lineIndex, goodChoice) in enumerate(goodChoices):
 	compromiseSolution = []
 	for i, goodWord in enumerate(goodWords):
 		if i - j > lookAhead:
-			j += lookAhead # we need to snap ahead in case we can't match a string of badWords
+			j = min(j + lookAhead, len(badWordObjs)-1) # we need to snap ahead in case we can't match a string of badWords
 			jOffsetForMatchingInDoubt = 0 # we snatch this back down, as we are unlikely to exhaust timestamp candidates right now
 		potentialMatchJ = j
 		bestJFit = None
-		for potentialJ in range(potentialMatchJ - lookBack, min(potentialMatchJ + lookAhead, len(badWordObjs))):
+
+		for potentialJ in range(potentialMatchJ - lookBack, min(potentialMatchJ + lookAhead, len(badWordObjs)-1)):
 			if potentialJ not in foundGoodMatchForTheseBadWords:
 				badWordObj = badWordObjs[potentialJ]
-				if (Levenshtein.ratio(goodWord, badWordObj['word'])) > 0.8:  # TODO: use score_cutoff to write faster
+				if (Levenshtein.ratio(goodWord, badWordObj['word'])) >= 0.7:  # TODO: use score_cutoff to write faster
 					bestJFit = potentialJ
 					break
 		if (bestJFit is None):
@@ -114,7 +120,7 @@ for (lineIndex, goodChoice) in enumerate(goodChoices):
 			compromise['confidence'] = 1 # danger: we abuse confidence to write down whether we think this word has been said here
 			compromiseSolution.append(compromise)
 			foundGoodMatchForTheseBadWords.append(bestJFit)
-			j = bestJFit + 1
+			j =  min(bestJFit + 1, len(badWordObjs)-1)
 			jOffsetForMatchingInDoubt = 0 # we snatch this back down, as we are no longer in doubt
 
 	fJson.close()
@@ -162,3 +168,4 @@ for (lineIndex, goodChoice) in enumerate(goodChoices):
 	with open(outputPathForThis, "w") as outfile:
 		json.dump(outputDictionary, outfile)
 
+print("Done! Check results in " + outputPath)
