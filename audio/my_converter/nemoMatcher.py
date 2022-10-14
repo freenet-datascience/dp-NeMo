@@ -113,7 +113,10 @@ for (lineIndex, goodChoice) in enumerate(goodChoices):
 				if (potentialMatchJ + jOffsetForMatchingInDoubt) >= len(badWordObjs) - 1:
 					jOffsetForMatchingInDoubt -= 1
 			compromise['confidence'] = 0.99 # danger: we abuse confidence to write down whether we think this word has been said here
-			compromiseSolution.append(compromise)
+
+			# DANGER: if you remove the if-condition in the next line, we get a lot of duplicate good words in the final result, if we can't match them. HOWEVER! There might actually be duplicate good words which we cannot match. Fix the algorithm
+			if len(compromiseSolution) > 0 and compromiseSolution[-1] != compromise: # hotfix as we get way too many duplicates. TODO: find out why we get duplicates for unmatched good words
+				compromiseSolution.append(compromise)
 		else:
 			compromise = badWordObjs[bestJFit] # we steal the timestamps of the matched word
 			compromise['word'] = goodWord
@@ -127,6 +130,7 @@ for (lineIndex, goodChoice) in enumerate(goodChoices):
 
 	# pp = pprint.PrettyPrinter(indent=4)
 	# pp.pprint(compromiseSolution)	
+
 
 	ibm_ts_list = []
 	for compromise in compromiseSolution:
