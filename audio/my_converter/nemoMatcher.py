@@ -4,6 +4,7 @@ import pprint
 import Levenshtein
 from optparse import OptionParser
 import re
+import os
 
 # matches a good but simple transcript of words to a bad transcript with good timestamps
 
@@ -27,103 +28,137 @@ import re
 # note that this algorithm is far from final. The example solution might get outdated 
 
 parser = OptionParser()
-parser.add_option("-g", "--good", dest = "good", help="a txt file in which the first line contains a good transcript of the audio file")
-parser.add_option("-t", "--timestamps", dest = "timestamps", help="a nemo json file which contains good timestamps, but occasionally bad words")
-parser.add_option("-o", "--output", dest = "output", help = "path for the output file in the style of ibm")
+parser.add_option("-g", "--good", dest = "good", help="a txt file in which the each line contains a good transcript of a audio file. Only first row used if combined with --timestamps. Alternatively: Same order as in --manifest please.")
+parser.add_option("-t", "--timestamps", dest = "timestamps", help="a nemo json file which contains good timestamps, but occasionally bad words", default = None)
+parser.add_option("-m", "--manifest", dest = "manifest", help="Alternative to --timestamps. The nemo manifest used to create the timestamps. Same order as in --good please. Combine with -f to pass the folder.", default = None)
+parser.add_option("-f", "--folderJson", dest = "folderJson", help="Combine with -f to give the folder containing the timestamps")
+parser.add_option("-o", "--output", dest = "output", help = "path for the output files in the style of ibm")
 parser.add_option("-l", "--limit", dest = "limit", help="in case we cannot find a good match, how many ill-fitting words should we go ahead to steal the timestamps?", default=1)
 
 (options, args) = parser.parse_args()
 
 goodPath = options.good
 timestampPath = options.timestamps
+manifestPath = options.manifest
 outputPath = options.output
+folderPath = options.folderJson
 jOffsetLimit = options.limit
 # eval_beamsearch_ngram.txt
 # nemo_voice.json
 
 goodTxt = re.sub(r'-[0-9.]*\b', "", Path(goodPath).read_text())
-goodChoice = goodTxt.split("\n")[0]
-goodWords = goodChoice.split(" ")
+goodChoices = goodTxt.split("\n")
 
-fJson = open(timestampPath)
-badWordObjs = json.load(fJson)['words']
-j = 0
-jOffsetForMatchingInDoubt = 0
-lookAhead = 4
-lookBack = 0
-
-foundGoodMatchForTheseBadWords = [] # after matching a good word to a bad word, we don't match another good word to it
-# however: when we cannot find a match, we might reuse the timestamps of the bad word 
-
-compromiseSolution = []
-for i, goodWord in enumerate(goodWords):
-	if i - j > lookAhead:
-		j += lookAhead # we need to snap ahead in case we can't match a string of badWords
-		jOffsetForMatchingInDoubt = 0 # we snatch this back down, as we are unlikely to exhaust timestamp candidates right now
-	potentialMatchJ = j
-	bestJFit = None
-	for potentialJ in range(potentialMatchJ - lookBack, min(potentialMatchJ + lookAhead, len(badWordObjs))):
-		if potentialJ not in foundGoodMatchForTheseBadWords:
-			badWordObj = badWordObjs[potentialJ]
-			if (Levenshtein.ratio(goodWord, badWordObj['word'])) > 0.8:  # TODO: use score_cutoff to write faster
-				bestJFit = potentialJ
-				break
-	if (bestJFit is None):
-		compromise = badWordObjs[potentialMatchJ+jOffsetForMatchingInDoubt] # we steal the timestamps of a word that should be roughly around here
-		compromise['word'] = goodWord # TODO: avg timestamps for an unknown word
-		if jOffsetForMatchingInDoubt < jOffsetLimit:
-			jOffsetForMatchingInDoubt += 1
-			if (potentialMatchJ + jOffsetForMatchingInDoubt) >= len(badWordObjs) - 1:
-				jOffsetForMatchingInDoubt -= 1
-		compromise['confidence'] = 0.99 # danger: we abuse confidence to write down whether we think this word has been said here
-		compromiseSolution.append(compromise)
-	else:
-		compromise = badWordObjs[bestJFit] # we steal the timestamps of the matched word
-		compromise['word'] = goodWord
-		compromise['confidence'] = 1 # danger: we abuse confidence to write down whether we think this word has been said here
-		compromiseSolution.append(compromise)
-		foundGoodMatchForTheseBadWords.append(bestJFit)
-		j = bestJFit + 1
-		jOffsetForMatchingInDoubt = 0 # we snatch this back down, as we are no longer in doubt
-
-fJson.close()
-
-# pp = pprint.PrettyPrinter(indent=4)
-# pp.pprint(compromiseSolution)	
-
-ibm_ts_list = []
-for compromise in compromiseSolution:
-	word = compromise['word']
-	start = compromise['start_time']	
-	end = compromise['end_time']
-	package = [word,start,end]
-	ibm_ts_list.append(package)	
-# pp.pprint(ibm_ts_list)
-
-ibm_conf_list = []
-for compromise in compromiseSolution:
-	word = compromise['word']
-	confidence = compromise['confidence']
-	package = [word,confidence]
-	ibm_conf_list.append(package)	
-# pp.pprint(ibm_conf_list)
+if timestampPath == manifestPath == None:
+	print("Error. Use -t (--timestamps) OR -m (--manifest), not neither.")
+	goodChoice = [] # we do nothing.
+elif timestampPath is not None and manifestPath is not None:
+	print("Error. Only use -t (--timestamps) OR -m (--manifest), not both at the same time")
+	goodChoice = [] # we do nothing.
+elif timestampPath is not None:
+	goodChoices = goodChoices[0]
+	print("Taking the first row of -g (--good) and matching it to timestampPath")
+elif manifestPath is not None:
+	manifestLines = Path(manifestPath).read_text().split("\n")
+	print(manifestLines)
+	print(" ----- ")
+	wavPaths = [re.findall(r".*\.wav", x)[0].split('"')[-1] for x in manifestLines if re.match(r".*\.wav", x) is not None]
+	#print(wavPaths)
+	jsonPaths = [os.path.join(folderPath, os.path.basename(x.replace(".wav", ".json"))) for x in wavPaths]
+	print(jsonPaths)
+	goodChoices = []
 
 
-outputDictionary = {
-	"result_index" : 0,
-	"results":
-	 {
-		"final": True,
-		"alternatives": {
-			"transcript": goodChoice,
-			"confidence": 1,
-			"timestamps": ibm_ts_list,
-			"word_confidence": ibm_conf_list	
-	 	}
-	} 
-}
-# pp.pprint(outputDictionary)
+if not os.path.exists(outputPath):
+   os.makedirs(outputPath)
 
-with open(outputPath, "w") as outfile:
-	json.dump(outputDictionary, outfile)
+
+for (lineIndex, goodChoice) in enumerate(goodChoices):
+	goodWords = goodChoice.split(" ")
+
+	fJson = open(timestampPath)
+	badWordObjs = json.load(fJson)['words']
+	j = 0
+	jOffsetForMatchingInDoubt = 0
+	lookAhead = 4
+	lookBack = 0
+
+	foundGoodMatchForTheseBadWords = [] # after matching a good word to a bad word, we don't match another good word to it
+	# however: when we cannot find a match, we might reuse the timestamps of the bad word 
+
+	compromiseSolution = []
+	for i, goodWord in enumerate(goodWords):
+		if i - j > lookAhead:
+			j += lookAhead # we need to snap ahead in case we can't match a string of badWords
+			jOffsetForMatchingInDoubt = 0 # we snatch this back down, as we are unlikely to exhaust timestamp candidates right now
+		potentialMatchJ = j
+		bestJFit = None
+		for potentialJ in range(potentialMatchJ - lookBack, min(potentialMatchJ + lookAhead, len(badWordObjs))):
+			if potentialJ not in foundGoodMatchForTheseBadWords:
+				badWordObj = badWordObjs[potentialJ]
+				if (Levenshtein.ratio(goodWord, badWordObj['word'])) > 0.8:  # TODO: use score_cutoff to write faster
+					bestJFit = potentialJ
+					break
+		if (bestJFit is None):
+			compromise = badWordObjs[potentialMatchJ+jOffsetForMatchingInDoubt] # we steal the timestamps of a word that should be roughly around here
+			compromise['word'] = goodWord # TODO: avg timestamps for an unknown word
+			if jOffsetForMatchingInDoubt < jOffsetLimit:
+				jOffsetForMatchingInDoubt += 1
+				if (potentialMatchJ + jOffsetForMatchingInDoubt) >= len(badWordObjs) - 1:
+					jOffsetForMatchingInDoubt -= 1
+			compromise['confidence'] = 0.99 # danger: we abuse confidence to write down whether we think this word has been said here
+			compromiseSolution.append(compromise)
+		else:
+			compromise = badWordObjs[bestJFit] # we steal the timestamps of the matched word
+			compromise['word'] = goodWord
+			compromise['confidence'] = 1 # danger: we abuse confidence to write down whether we think this word has been said here
+			compromiseSolution.append(compromise)
+			foundGoodMatchForTheseBadWords.append(bestJFit)
+			j = bestJFit + 1
+			jOffsetForMatchingInDoubt = 0 # we snatch this back down, as we are no longer in doubt
+
+	fJson.close()
+
+	# pp = pprint.PrettyPrinter(indent=4)
+	# pp.pprint(compromiseSolution)	
+
+	ibm_ts_list = []
+	for compromise in compromiseSolution:
+		word = compromise['word']
+		start = compromise['start_time']	
+		end = compromise['end_time']
+		package = [word,start,end]
+		ibm_ts_list.append(package)	
+	# pp.pprint(ibm_ts_list)
+
+	ibm_conf_list = []
+	for compromise in compromiseSolution:
+		word = compromise['word']
+		confidence = compromise['confidence']
+		package = [word,confidence]
+		ibm_conf_list.append(package)	
+	# pp.pprint(ibm_conf_list)
+
+
+	outputDictionary = {
+		"result_index" : 0,
+		"results":
+		{
+			"final": True,
+			"alternatives": {
+				"transcript": goodChoice,
+				"confidence": 1,
+				"timestamps": ibm_ts_list,
+				"word_confidence": ibm_conf_list	
+			}
+		} 
+	}
+	# pp.pprint(outputDictionary)
+
+
+	outputFileForThis = os.path.basename(timestampPath)
+	outputPathForThis = os.path.join(outputPath, outputFileForThis)
+
+	with open(outputPathForThis, "w") as outfile:
+		json.dump(outputDictionary, outfile)
 
