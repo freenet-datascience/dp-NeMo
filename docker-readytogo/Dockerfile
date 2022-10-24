@@ -9,7 +9,7 @@
 # Magnus: This works, but does not yet include the pytorch audio installation
 FROM nvcr.io/nvidia/pytorch:22.08-py3
 
-# 
+#  #
 COPY reinstall.sh /tmp/
 COPY setup.cfg /tmp/
 COPY setup.py  /tmp/
