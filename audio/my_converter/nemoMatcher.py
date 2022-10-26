@@ -128,7 +128,7 @@ for (lineIndex, goodChoice) in enumerate(goodChoices):
 
 	fJson.close()
 
-	# pp = pprint.PrettyPrinter(indent=4)
+	pp = pprint.PrettyPrinter(indent=4)
 	# pp.pprint(compromiseSolution)	
 
 
@@ -139,7 +139,7 @@ for (lineIndex, goodChoice) in enumerate(goodChoices):
 		end = compromise['end_time']
 		package = [word,start,end]
 		ibm_ts_list.append(package)	
-	# pp.pprint(ibm_ts_list)
+	pp.pprint(ibm_ts_list)
 
 	ibm_conf_list = []
 	for compromise in compromiseSolution:
@@ -150,19 +150,20 @@ for (lineIndex, goodChoice) in enumerate(goodChoices):
 	# pp.pprint(ibm_conf_list)
 
 
-	outputDictionary = {
+	outputDictionary = [{
 		"result_index" : 0,
 		"results":
 		{
-			"final": True,
-			"alternatives": {
+			"final": [True],
+			"alternatives": [{
 				"transcript": goodChoice,
 				"confidence": 1,
 				"timestamps": ibm_ts_list,
-				"word_confidence": ibm_conf_list	
-			}
-		} 
-	}
+				"word_confidence": ibm_conf_list
+			}],
+			"word_alternatives": [] # we do not provide alternatives, this is just for compatiblity with ibm
+		}
+	}]
 	# pp.pprint(outputDictionary)
 
 
