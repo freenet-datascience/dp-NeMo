@@ -7,26 +7,41 @@
 # for more information.
 #
 # Magnus: This works, but does not yet include the pytorch audio installation
-FROM nvcr.io/nvidia/pytorch:22.08-py3
+# FROM nvcr.io/nvidia/pytorch:22.08-py3
+FROM ubuntu:jammy-20221003
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && \
+    apt-get install -y python3-torch python3-pip python3-dev git wget build-essential --no-install-recommends && \
+     apt-get -yq install swig build-essential libboost-all-dev cmake zlib1g-dev libbz2-dev liblzma-dev ffmpeg libpcre3 libpcre3-dev --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
+RUN pip3 install --upgrade pip 
+RUN pip3 install wheel cython pesq --no-cache-dir
 
 #  #
-COPY reinstall.sh /tmp/
-COPY setup.cfg /tmp/
-COPY setup.py  /tmp/
-COPY nemo /tmp/nemo/
-COPY requirements /tmp/requirements/
-WORKDIR /tmp/
-RUN ./reinstall.sh
+# COPY reinstall.sh /tmp/
+# COPY setup.cfg /tmp/
+# COPY setup.py  /tmp/
+# COPY nemo /tmp/nemo/
+# COPY requirements /tmp/requirements/
+# WORKDIR /tmp/
+# RUN ./reinstall.sh
+
 WORKDIR /workspace/
 
 # install packages required for training language models
-RUN apt-get update
-ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get -yq install swig build-essential libboost-all-dev cmake zlib1g-dev libbz2-dev liblzma-dev ffmpeg libpcre3 libpcre3-dev 
+
 WORKDIR /workspace/
 
 RUN git clone https://github.com/NVIDIA/NeMo.git
+RUN pip3 install -r /workspace/NeMo/requirements/requirements.txt --no-cache-dir
+RUN pip3 install -r /workspace/NeMo/requirements/requirements_common.txt --no-cache-dir
+RUN pip3 install -r /workspace/NeMo/requirements/requirements_asr.txt --no-cache-dir
+RUN pip3 install -r /workspace/NeMo/requirements/requirements_lightning.txt --no-cache-dir
+# 
 # install decoders
+WORKDIR /workspace/NeMo/
+RUN pip3 install -e .
+
 WORKDIR /workspace/NeMo/scripts/asr_language_modeling/ngram_lm
 RUN git clone --single-branch -b ctc-decoders https://github.com/NVIDIA/OpenSeq2Seq
 RUN mv OpenSeq2Seq/decoders .
@@ -46,8 +61,8 @@ RUN tar -xzvf openfst-1.6.3.tar.gz
 # ThreadPool
 RUN git clone https://github.com/progschj/ThreadPool.git
 
-RUN python3.8 setup.py install --num_processes 4
+RUN python3 setup.py install --num_processes 4
 WORKDIR /workspace/NeMo/scripts/asr_language_modeling/ngram_lm
 
 # these packages are required for diarization
-RUN python3.8 -m pip install pyctcdecode pypi-kenlm arpa levenshtein
+RUN python3 -m pip install pyctcdecode pypi-kenlm arpa levenshtein  --no-cache-dir
