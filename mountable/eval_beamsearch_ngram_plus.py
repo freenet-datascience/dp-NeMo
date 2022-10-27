@@ -41,7 +41,7 @@ import argparse
 import contextlib
 import json
 import os
-import pickle
+import dill as pickle
 import csv
 import re
 from pathlib import Path
@@ -340,12 +340,27 @@ def main():
         encoding_level = 'char'
 
     vocab = asr_model.decoder.vocabulary
+
     ids_to_text_func = None
     if encoding_level == "subword":
         vocab = [chr(idx + TOKEN_OFFSET) for idx in range(len(vocab))]
         ids_to_text_func = asr_model.tokenizer.ids_to_text
     # delete the model to free the memory
     del asr_model
+
+    # small vocab addition for testing
+    if args.probs_cache_file:
+        vocabPickle = args.probs_cache_file+"_vocab.pickle"
+        logging.info(f"Writing pickle files of vocab at '{vocabPickle}'...")
+        with open(vocabPickle, 'wb') as f_dump:
+            pickle.dump(vocab, f_dump)
+        tokenizerPickle = args.probs_cache_file+"_tokenizer.pickle"
+        logging.info(f"Writing pickle files of tokenizer at '{tokenizerPickle}'...")
+        with open(tokenizerPickle, 'wb') as f_dump:
+            pickle.dump(ids_to_text_func, f_dump)
+    # end of small vocab addition for testing
+    
+    
 
     if args.decoding_mode == "beamsearch_ngram":
         if not os.path.exists(args.kenlm_model_file):

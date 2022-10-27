@@ -3,7 +3,7 @@ import argparse
 import contextlib
 import json
 import os
-import pickle
+import dill as pickle
 import csv
 import pandas
 import torch
@@ -14,6 +14,10 @@ import numpy as np
 from ctcdecode import CTCBeamDecoder
 
 # code is heavily inspired by https://github.com/NVIDIA/NeMo/discussions/2577
+
+fileTokenizer = open("/workspace/NeMo/mountable/dev_model/outProbsGymondo.txt_tokenizer.pickle", 'rb')
+tokenizer = pickle.load(fileTokenizer)
+
 
 fileVocab = open("/workspace/NeMo/mountable/dev_model/outProbsGymondo.txt_vocab.pickle", 'rb')
 
@@ -73,8 +77,7 @@ def beam_decoder(beam_results, beam_scores, timesteps, out_lens, chunk_pad):
     times = timesteps[0][0][:out_lens[0][0]].cpu().numpy()
     lens = out_lens[0][0]
     
-    transcript = "".join[labels[n] for n in beam_res]
-    transcript = "x" # self.asr_model.tokenizer.ids_to_text(beam_res)
+    transcript = tokenizer(beam_res)
     
     if len(times) > 0:
         if times[0] < TIME_PAD:
@@ -130,11 +133,12 @@ def beam_decoder(beam_results, beam_scores, timesteps, out_lens, chunk_pad):
         result.append(result_word)
         
     else:
+        print("alt result")
         print(transcript)
         result = []
         
     return transcript, result
 
 transcript, result = beam_decoder(beam_results, beam_scores, timesteps, out_lens, chunk_pad=0)
-
+print("final result")
 print(transcript)
