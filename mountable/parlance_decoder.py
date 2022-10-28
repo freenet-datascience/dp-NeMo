@@ -190,7 +190,7 @@ for letter in transcript:
         continue
     
     if (i_in_results >= len(result_filtered)) or letter == ' ':
-        result_good = {'start': start_in_progress, 'end': end_in_progress, 'word': word_in_progress}
+        result_good = {'start_time': start_in_progress, 'end_time': end_in_progress, 'word': word_in_progress}
         # print(word_in_progress)
         # print(letter)
         result_words.append(result_good)
@@ -213,3 +213,7 @@ for letter in transcript:
 
 print("final result")
 print(result_words)
+
+outputJson = {'words': result_words}
+with open(outputPathForThis, "w") as outfile:
+                json.dump(outputJson, outfile)
