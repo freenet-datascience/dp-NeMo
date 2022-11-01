@@ -16,18 +16,19 @@ from ctcdecode import CTCBeamDecoder
 
 # code is heavily inspired by https://github.com/NVIDIA/NeMo/discussions/2577
 
-fileTokenizer = open("/workspace/NeMo/mountable/dev_model/outProbsGymondo.txt_tokenizer.pickle", 'rb')
+fileTokenizer = open("/workspace/NeMo/mountable/dev_model/outProbsGymondoMini.txt_tokenizer.pickle", 'rb')
 tokenizer = pickle.load(fileTokenizer)
 
-import inspect
-lines = inspect.getsource(tokenizer)
-print(lines)
+
 
 
 fileVocab = open("/workspace/NeMo/mountable/dev_model/outProbsGymondo.txt_vocab.pickle", 'rb')
 
+
+parlanceDecodedPath = "/workspace/NeMo/mountable/parlanced/"
+
 vocab = pickle.load(fileVocab)
-vocab.append("_")
+
 print("Length of vocab " + str(len(vocab)))
 print(" vocab " + str(vocab))
 TOKEN_OFFSET = 100
@@ -35,19 +36,17 @@ TOKEN_OFFSET = 100
 file = open("/workspace/NeMo/mountable/dev_model/outProbsGymondo.txt", 'rb')
 
 # take information of that file
-dataProbs = pickle.load(file)[0]
+allDataProbs = pickle.load(file)
 
 # close the file
 file.close()
-df = pandas.DataFrame(dataProbs)
-df.to_csv("hypotheses.csv")
 
-outputs = torch.from_numpy(np.expand_dims(dataProbs, axis=0))
-print(outputs.shape)
 
 lm_path = '/workspace/NeMo/mountable/dev_model/result_topchoice_frienett.bin'
 
 labels = [chr(idx + TOKEN_OFFSET) for idx in range(len(vocab))]
+labels.append("_")
+blank_id = 129
 print("labels " + str(labels))
 decoder = CTCBeamDecoder(
     labels= labels,
@@ -58,11 +57,14 @@ decoder = CTCBeamDecoder(
     cutoff_prob=1.0,
     beam_width=16,
     num_processes=max(os.cpu_count(), 1),
-    blank_id=129,
+    blank_id=blank_id,
     log_probs_input=False
 )
 
-beam_results, beam_scores, timesteps, out_lens = decoder.decode(outputs)
+translated_labels = [tokenizer(idx) for idx in range(len(vocab))]
+print("translated labels " + str(translated_labels))
+
+
 
 
 
@@ -75,7 +77,7 @@ TOKEN_OFFSET = 100
 TIME_STEP = 0.04
 TIME_PAD = 1
 
-print(beam_results.size())
+# print(beam_results.size())
 
 def beam_decoder(beam_results, beam_scores, timesteps, out_lens, chunk_pad):
     # probs = softmax(logits)
@@ -89,7 +91,7 @@ def beam_decoder(beam_results, beam_scores, timesteps, out_lens, chunk_pad):
     lens = out_lens[0][0]
     
     transcript = tokenizer(beam_res)
-
+    # print(transcript)
     wordConcat = ""
     
     if len(times) > 0:
@@ -113,6 +115,7 @@ def beam_decoder(beam_results, beam_scores, timesteps, out_lens, chunk_pad):
 
             tocken = labels[int(beam_res[n])]
             
+            # print(tocken + " is #" + str(int(beam_res[n])))
             if tocken[0] == "#":
                 word = word + tocken[2:]
                 print("token started with #")
@@ -120,8 +123,10 @@ def beam_decoder(beam_results, beam_scores, timesteps, out_lens, chunk_pad):
             elif tocken[0] == "-" or tocken_prev[0] == "-":
                 word = word + tocken
                 print("token or previous token started with -")
-           # elif int(beam_res[n]) == 1:
-           #     print("token was of id 1") # this means we cannot find a translated_word, but they don't align with whitespace. Weird.
+            #elif int(beam_res[n]) in [0,1,77]:
+            #    word = word + " "
+            #    # print("token was mysterios 1")
+            #   print("token was of id 1") # this means we cannot find a translated_word, but they don't align with whitespace. Weird.
             else:
                 translated_word = tokenizer(int(beam_res[n]))
                 if start > end:
@@ -159,61 +164,96 @@ def beam_decoder(beam_results, beam_scores, timesteps, out_lens, chunk_pad):
         # print("alt result")
         # print(transcript)
         result = []
-    # print("Word Concat")
-    # print(wordConcat)
-    # print("#####")
-    return transcript, result
+    agreed_transcript = ""
+    i_timestamped = 0
+
+    # sometimes the transcript is bigger than the (timestamped) wordConcat. We get rid of extra letters, but keep the spaces
+    for transcript_letter in transcript:
+        if i_timestamped >= len(wordConcat):
+            break
+        timestamped_letter = wordConcat[i_timestamped]
+        if transcript_letter == timestamped_letter:
+            agreed_transcript += timestamped_letter
+            i_timestamped += 1
+        elif len(agreed_transcript) > 0 and transcript_letter == ' ' and agreed_transcript[-1] != ' ':
+            agreed_transcript += ' ' # we do not want double white space, just because we delete a word
+
+    return agreed_transcript, result
 
 
-transcript, result = beam_decoder(beam_results, beam_scores, timesteps, out_lens, chunk_pad=0)
 
-# unlike the original author, we do not know the special symbols (he uses '#' and "-")
-# however, our tokenizer function does. So we take the blanks from the tokenizer's results
+def blank_reinserter(transcript, result):
+    # unlike the original author, we do not know the special symbols (he uses '#' and "-")
+    # however, our tokenizer function does. So we take the blanks from the tokenizer's results
 
-i_in_results = 0
-word_in_progress = ""
-start_in_progress = 0.0
-end_in_progress = 0.0
-expecting_new_word = True
+    i_in_results = 0
+    word_in_progress = ""
+    start_in_progress = 0.0
+    end_in_progress = 0.0
+    expecting_new_word = True
 
-skip_n_steps = 0
+    skip_n_steps = 0
 
-result_filtered = [x for x in result if ('translatedWord' in x and len(x['translatedWord']) > 0)] # if we want to go by the letter in the transcript, we cannot have empty translatedWords
-#TODO: investigate why we ever get a empty translatedWord
-
-result_words = []
-print("let's go")
-for letter in transcript:
-    if skip_n_steps > 0:
-        # print(letter + " skip")
-        skip_n_steps -= 1
-        continue
     
-    if (i_in_results >= len(result_filtered)) or letter == ' ':
-        result_good = {'start_time': start_in_progress, 'end_time': end_in_progress, 'word': word_in_progress}
-        # print(word_in_progress)
-        # print(letter)
-        result_words.append(result_good)
-        word_in_progress = ""
-        expecting_new_word = True
+    result_filtered = [x for x in result if ('translatedWord' in x and len(x['translatedWord']) > 0)] # if we want to go by the letter in the transcript, we cannot have empty translatedWords
+    #TODO: investigate why we ever get a empty translatedWord
 
-    else:
-        current_result = result_filtered[i_in_results]
-
-        jump_size = max(0, len(current_result['translatedWord'])-1) # we might get "und" in the results, and thus we need to fit the words we found
-        # print(letter + " vs " + current_result['translatedWord'] + " jump " + str(jump_size))
-        word_in_progress += current_result['translatedWord']
-        if expecting_new_word:
-            start_in_progress = current_result['start'] # due to the frame system, we will get overlaps in the sub-timestep times
-            expecting_new_word = False
-        end_in_progress = current_result['end']
-        i_in_results += 1
-        skip_n_steps = jump_size
+    result_words = []
+    # print(result_filtered)
+    # print("let's go")
+    # print(transcript)
+    for letter in transcript:
+        if skip_n_steps > 0:
+            # print(letter + " skip")
+            skip_n_steps -= 1
+            continue
         
+        if (i_in_results >= len(result_filtered)) or letter == ' ':
+            result_good = {'start_time': start_in_progress, 'end_time': end_in_progress, 'word': word_in_progress}
+            # print(word_in_progress)
+            # print(letter)
+            result_words.append(result_good)
+            word_in_progress = ""
+            expecting_new_word = True
 
-print("final result")
-print(result_words)
+        else:
+            
+            current_result = result_filtered[i_in_results]
+            jump_size = max(0, len(current_result['translatedWord'])-1) # we might get "und" in the results, and thus we need to fit the words we found
+            # print(letter + " vs " + current_result['translatedWord'] + " jump " + str(jump_size))
+            word_in_progress += current_result['translatedWord']
+            if expecting_new_word:
+                start_in_progress = current_result['start'] # due to the frame system, we will get overlaps in the sub-timestep times
+                expecting_new_word = False
+            end_in_progress = current_result['end']
+            i_in_results += 1
+            skip_n_steps = jump_size
+            
 
-outputJson = {'words': result_words}
-with open(outputPathForThis, "w") as outfile:
-                json.dump(outputJson, outfile)
+    # print("final result")
+    # print(result_words)
+
+    output_dict = {'words': result_words}
+    return(output_dict)
+
+for idx, dataProbs in enumerate(allDataProbs):
+
+    print()
+    print(idx)
+    df = pandas.DataFrame(dataProbs)
+    # df.to_csv("hypotheses.csv")
+
+    outputs = torch.from_numpy(np.expand_dims(dataProbs, axis=0))
+    # print(outputs.shape)
+    beam_results, beam_scores, timesteps, out_lens = decoder.decode(outputs)
+    transcript, result = beam_decoder(beam_results, beam_scores, timesteps, out_lens, chunk_pad=0)
+
+    resultDict = blank_reinserter(transcript, result)
+    outPath = os.path.join(parlanceDecodedPath, (str(idx)+".json"))
+    with open(outPath, "w") as outfile:
+        json.dump(resultDict, outfile)
+    
+
+# import inspect
+# lines = inspect.getsource(tokenizer)
+# print(lines)
