@@ -1,5 +1,5 @@
 
-import argparse
+from optparse import OptionParser
 import contextlib
 import json
 import os
@@ -16,15 +16,23 @@ from ctcdecode import CTCBeamDecoder
 
 # code is heavily inspired by https://github.com/NVIDIA/NeMo/discussions/2577
 
-fileTokenizer = open("/workspace/NeMo/mountable/dev_model/outProbsGymondoMini.txt_tokenizer.pickle", 'rb')
+parser = OptionParser()
+parser.add_option("-t", "--tokenizer", dest = "tokenizer", help= "The pickle file containing the tokenizer", default = None)
+parser.add_option("-v", "--vocab", dest = "vocab", help= "The pickle file containing the vocab.", default = None)
+parser.add_option("-p", "--probs", dest = "probs", help= "The pickle file containing the probs.", default = None)
+parser.add_option("-o", "--output", dest = "output", help= "Path of the output folder", default = None)
+parser.add_option("-l", "--languageModel", dest = "languageModel", help= "Path of the language model", default = None)
+
+(options, args) = parser.parse_args()
+
+
+# fileTokenizer = open("/workspace/NeMo/mountable/dev_model/outProbsGymondoMini.txt_tokenizer.pickle", 'rb')
+fileTokenizer = open(options.tokenizer, 'rb')
 tokenizer = pickle.load(fileTokenizer)
 
 
-
-
-fileVocab = open("/workspace/NeMo/mountable/dev_model/outProbsGymondo.txt_vocab.pickle", 'rb')
-
-
+# fileVocab = open("/workspace/NeMo/mountable/dev_model/outProbsGymondo.txt_vocab.pickle", 'rb')
+fileVocab = open(options.vocab, 'rb')
 parlanceDecodedPath = "/workspace/NeMo/mountable/parlanced/"
 
 vocab = pickle.load(fileVocab)
@@ -33,7 +41,8 @@ print("Length of vocab " + str(len(vocab)))
 print(" vocab " + str(vocab))
 TOKEN_OFFSET = 100
 
-file = open("/workspace/NeMo/mountable/dev_model/outProbsGymondo.txt", 'rb')
+# file = open("/workspace/NeMo/mountable/dev_model/outProbsGymondo.txt", 'rb')
+file = open(options.probs, 'rb')
 
 # take information of that file
 allDataProbs = pickle.load(file)
@@ -63,10 +72,6 @@ decoder = CTCBeamDecoder(
 
 translated_labels = [tokenizer(idx) for idx in range(len(vocab))]
 print("translated labels " + str(translated_labels))
-
-
-
-
 
 
 SAMPLE_RATE = 16000
