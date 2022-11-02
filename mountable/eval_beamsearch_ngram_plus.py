@@ -140,17 +140,18 @@ def beam_search_eval(
                     # first candidate
                     wer_dist_first += wer_dist
                     cer_dist_first += cer_dist
-
+                    if preds_output_file:
+                        out_file.write('{}\t{}\n'.format(pred_text, score))
+                        logging.info("We o")
                 score = candidate[0]
-                if preds_output_file:
-                    out_file.write('{}\t{}\n'.format(pred_text, score))
+                
             wer_dist_best += wer_dist_min
             cer_dist_best += cer_dist_min
         sample_idx += len(probs_batch)
 
     if preds_output_file:
         out_file.close()
-        logging.info(f"Stored the predictions of beam search decoding at '{preds_output_file}'.")
+        logging.info(f"For our Freenet case, we only store the top predictions. Stored the predictions of beam search decoding at '{preds_output_file}'.")
 
     if lm_path:
         logging.info(
@@ -194,6 +195,7 @@ def main():
     parser.add_argument(
         "--probs_cache_file", default=None, type=str, help="The cache file for storing the outputs of the model"
     )
+    
     parser.add_argument(
         "--acoustic_batch_size", default=16, type=int, help="The batch size to calculate log probabilities"
     )
@@ -237,6 +239,14 @@ def main():
     
     parser.add_argument(
         "--sounds_like_csv", default=None, type=str, help="The csv in which we convert the result text from 'soundsLike' form to 'result' form. Do not set to skip conversion."
+    )
+    
+    parser.add_argument(
+        "--vocab_cache_file", default=None, type=str, help="The cache file for storing the vocabs"
+    )
+    
+    parser.add_argument(
+        "--tokenizer_cache_file", default=None, type=str, help="The cache file for storing the tokenizer"
     )
     
     args = parser.parse_args()
@@ -348,17 +358,18 @@ def main():
     # delete the model to free the memory
     del asr_model
 
-    # small vocab addition for testing
-    if args.probs_cache_file:
-        vocabPickle = args.probs_cache_file+"_vocab.pickle"
+    # small vocab and tokenizer addition for parlance run later
+    if args.vocab_cache_file:
+        vocabPickle = args.vocab_cache_file
         logging.info(f"Writing pickle files of vocab at '{vocabPickle}'...")
         with open(vocabPickle, 'wb') as f_dump:
             pickle.dump(vocab, f_dump)
-        tokenizerPickle = args.probs_cache_file+"_tokenizer.pickle"
+    if args.tokenizer_cache_file:
+        tokenizerPickle = args.tokenizer_cache_file
         logging.info(f"Writing pickle files of tokenizer at '{tokenizerPickle}'...")
         with open(tokenizerPickle, 'wb') as f_dump:
             pickle.dump(ids_to_text_func, f_dump)
-    # end of small vocab addition for testing
+    # end of small vocab and tokenizer addition for parlance
     
     
 
@@ -388,7 +399,8 @@ def main():
             if args.preds_output_folder:
                 preds_output_file = os.path.join(
                     args.preds_output_folder,
-                    f"preds_out_width{hp['beam_width']}_alpha{hp['beam_alpha']}_beta{hp['beam_beta']}.tsv",
+                    "top_choice.tsv"
+                    # f"preds_out_width{hp['beam_width']}_alpha{hp['beam_alpha']}_beta{hp['beam_beta']}.tsv",
                 )
             else:
                 preds_output_file = None
