@@ -38,9 +38,11 @@ RUN pip3 install -r /workspace/NeMo/requirements/requirements_common.txt --no-ca
 RUN pip3 install -r /workspace/NeMo/requirements/requirements_asr.txt --no-cache-dir
 RUN pip3 install -r /workspace/NeMo/requirements/requirements_lightning.txt --no-cache-dir
 # 
-# install decoders
+# install nemo
 WORKDIR /workspace/NeMo/
 RUN pip3 install -e .
+
+
 
 WORKDIR /workspace/NeMo/scripts/asr_language_modeling/ngram_lm
 RUN git clone --single-branch -b ctc-decoders https://github.com/NVIDIA/OpenSeq2Seq
@@ -65,4 +67,14 @@ RUN python3 setup.py install --num_processes 4
 WORKDIR /workspace/NeMo/scripts/asr_language_modeling/ngram_lm
 
 # these packages are required for diarization
-RUN python3 -m pip install pyctcdecode pypi-kenlm arpa levenshtein  --no-cache-dir
+RUN python3 -m pip install dill levenshtein  --no-cache-dir
+
+# install parlance
+WORKDIR /workspace/NeMo/
+
+# RUN pip3 install git+https://github.com/parlance/ctcdecode.git
+RUN  git clone --recursive https://github.com/parlance/ctcdecode.git
+WORKDIR /workspace/NeMo/ctcdecode/
+
+WORKDIR /workspace/NeMo/ctcdecode/
+# RUN pip3 install . # this only works in container for whatever reason

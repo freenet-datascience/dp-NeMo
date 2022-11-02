@@ -31,9 +31,10 @@ parser = OptionParser()
 parser.add_option("-g", "--good", dest = "good", help="a txt file in which the each line contains a good transcript of a audio file. Only first row used if combined with --timestamps. Alternatively: Same order as in --manifest please.")
 parser.add_option("-t", "--timestamps", dest = "timestamps", help="a nemo json file which contains good timestamps, but occasionally bad words", default = None)
 parser.add_option("-m", "--manifest", dest = "manifest", help="Alternative to --timestamps. The nemo manifest used to create the timestamps. Same order as in --good please. Combine with -f to pass the folder.", default = None)
-parser.add_option("-f", "--folderJson", dest = "folderJson", help="Combine with -f to give the folder containing the timestamps")
+parser.add_option("-f", "--folderJson", dest = "folderJson", help="Combine with --manifest to give the folder containing the timestamps. If used alone will assume index names like '1.json' for same order as in --good")
 parser.add_option("-o", "--output", dest = "output", help = "path for the output files in the style of ibm")
 parser.add_option("-l", "--limit", dest = "limit", help="in case we cannot find a good match, how many ill-fitting words should we go ahead to steal the timestamps?", default=1)
+
 
 (options, args) = parser.parse_args()
 
@@ -51,11 +52,11 @@ goodChoices = [x for x in goodTxt.split("\n") if x != ""]
 
 jsonPaths = []
 
-if timestampPath == manifestPath == None:
-	print("Error. Use -t (--timestamps) OR -m (--manifest), not neither.")
+if timestampPath == folderPath == None:
+	print("Error. Use -t (--timestamps) OR -f (--folderJson), not neither.")
 	goodChoice = [] # we do nothing.
-elif timestampPath is not None and manifestPath is not None:
-	print("Error. Only use -t (--timestamps) OR -m (--manifest), not both at the same time")
+elif timestampPath is not None and folderPath is not None:
+	print("Error. Only use -t (--timestamps) OR -f (--folderJson), not both at the same time")
 	goodChoice = [] # we do nothing.
 elif timestampPath is not None:
 	goodChoices = goodChoices[0]
@@ -71,7 +72,18 @@ elif manifestPath is not None:
 
 	#print(jsonPaths)
 	print("Using the paths from -m (--manifest) and -f (--folderJson).")
-
+elif manifestPath is None:
+	print("Good Choices count " + str(len(goodChoices)))
+	jsonPaths = [os.path.join(folderPath, str(i) + ".json") for i, _ in enumerate(goodChoices)]
+	 soundsLikeList = None
+    if args.sounds_like_csv == None:
+        logging.info(f"No csv for conversion has been given")
+    else:
+        f = open(args.sounds_like_csv)
+        c = csv.reader(f, delimiter = ';')
+        soundsLikeList = list(c)
+        logging.info(f"Loading the csv for conversion from '{args.sounds_like_csv}' ...")
+	print("Using the paths from -f (--folderJson) but without using a manifest. Assuming files are numbered and in same order as in --good")
 if not os.path.exists(outputPath):
    os.makedirs(outputPath)
 
