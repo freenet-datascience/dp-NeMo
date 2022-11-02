@@ -53,136 +53,136 @@ goodChoices = [x for x in goodTxt.split("\n") if x != ""]
 jsonPaths = []
 
 if timestampPath == folderPath == None:
-	print("Error. Use -t (--timestamps) OR -f (--folderJson), not neither.")
-	goodChoice = [] # we do nothing.
+        print("Error. Use -t (--timestamps) OR -f (--folderJson), not neither.")
+        goodChoice = [] # we do nothing.
 elif timestampPath is not None and folderPath is not None:
-	print("Error. Only use -t (--timestamps) OR -f (--folderJson), not both at the same time")
-	goodChoice = [] # we do nothing.
+        print("Error. Only use -t (--timestamps) OR -f (--folderJson), not both at the same time")
+        goodChoice = [] # we do nothing.
 elif timestampPath is not None:
-	goodChoices = goodChoices[0]
-	jsonPaths = [timestampPath]
-	print("Taking the first row of -g (--good) and matching it to timestampPath")
+        goodChoices = goodChoices[0]
+        jsonPaths = [timestampPath]
+        print("Taking the first row of -g (--good) and matching it to timestampPath")
 elif manifestPath is not None:
-	print("Good Choices count " + str(len(goodChoices)))
-	manifestLines = Path(manifestPath).read_text().split("\n")
+        print("Good Choices count " + str(len(goodChoices)))
+        manifestLines = Path(manifestPath).read_text().split("\n")
 
-	wavPaths = [re.findall(r".*\.wav", x)[0].split('"')[-1] for x in manifestLines if re.match(r".*\.wav", x) is not None]
-	print("Wav Paths in Manifest line count " + str(len(wavPaths)))
-	jsonPaths = [os.path.join(folderPath, os.path.basename(x.replace(".wav", ".json"))) for x in wavPaths]
+        wavPaths = [re.findall(r".*\.wav", x)[0].split('"')[-1] for x in manifestLines if re.match(r".*\.wav", x) is not None]
+        print("Wav Paths in Manifest line count " + str(len(wavPaths)))
+        jsonPaths = [os.path.join(folderPath, os.path.basename(x.replace(".wav", ".json"))) for x in wavPaths]
 
-	#print(jsonPaths)
-	print("Using the paths from -m (--manifest) and -f (--folderJson).")
+        #print(jsonPaths)
+        print("Using the paths from -m (--manifest) and -f (--folderJson).")
 elif manifestPath is None:
-	print("Good Choices count " + str(len(goodChoices)))
-	jsonPaths = [os.path.join(folderPath, str(i) + ".json") for i, _ in enumerate(goodChoices)]
-	 soundsLikeList = None
-    if args.sounds_like_csv == None:
-        logging.info(f"No csv for conversion has been given")
-    else:
-        f = open(args.sounds_like_csv)
-        c = csv.reader(f, delimiter = ';')
-        soundsLikeList = list(c)
-        logging.info(f"Loading the csv for conversion from '{args.sounds_like_csv}' ...")
-	print("Using the paths from -f (--folderJson) but without using a manifest. Assuming files are numbered and in same order as in --good")
+        print("Good Choices count " + str(len(goodChoices)))
+        jsonPaths = [os.path.join(folderPath, str(i) + ".json") for i, _ in enumerate(goodChoices)]
+        soundsLikeList = None
+        if args.sounds_like_csv == None:
+        	logging.info(f"No csv for conversion has been given")
+        else:
+        	f = open(args.sounds_like_csv)
+        	c = csv.reader(f, delimiter = ';')
+        	soundsLikeList = list(c)
+        	logging.info(f"Loading the csv for conversion from '{args.sounds_like_csv}' ...")
+        	print("Using the paths from -f (--folderJson) but without using a manifest. Assuming files are numbered and in same order as in --good")
 if not os.path.exists(outputPath):
-   os.makedirs(outputPath)
+        os.makedirs(outputPath)
 
 
 for (lineIndex, goodChoice) in enumerate(goodChoices):
-	goodWords = goodChoice.split(" ")
+        goodWords = goodChoice.split(" ")
 
-	# print("liney is " + str(len(goodChoices)) + " out of " + str(len(jsonPaths)))
-	timestampPath = jsonPaths[lineIndex] # we use the matching line
-	fJson = open(timestampPath)
-	badWordObjs = json.load(fJson)['words']
-	j = 0
-	jOffsetForMatchingInDoubt = 0
-	lookAhead = 4
-	lookBack = 0
+        # print("liney is " + str(len(goodChoices)) + " out of " + str(len(jsonPaths)))
+        timestampPath = jsonPaths[lineIndex] # we use the matching line
+        fJson = open(timestampPath)
+        badWordObjs = json.load(fJson)['words']
+        j = 0
+        jOffsetForMatchingInDoubt = 0
+        lookAhead = 4
+        lookBack = 0
 
-	foundGoodMatchForTheseBadWords = [] # after matching a good word to a bad word, we don't match another good word to it
-	# however: when we cannot find a match, we might reuse the timestamps of the bad word 
+        foundGoodMatchForTheseBadWords = [] # after matching a good word to a bad word, we don't match another good word to it
+        # however: when we cannot find a match, we might reuse the timestamps of the bad word 
 
-	compromiseSolution = []
-	for i, goodWord in enumerate(goodWords):
-		if i - j > lookAhead:
-			j = min(j + lookAhead, len(badWordObjs)-1) # we need to snap ahead in case we can't match a string of badWords
-			jOffsetForMatchingInDoubt = 0 # we snatch this back down, as we are unlikely to exhaust timestamp candidates right now
-		potentialMatchJ = j
-		bestJFit = None
+        compromiseSolution = []
+        for i, goodWord in enumerate(goodWords):
+                if i - j > lookAhead:
+                        j = min(j + lookAhead, len(badWordObjs)-1) # we need to snap ahead in case we can't match a string of badWords
+                        jOffsetForMatchingInDoubt = 0 # we snatch this back down, as we are unlikely to exhaust timestamp candidates right now
+                potentialMatchJ = j
+                bestJFit = None
 
-		for potentialJ in range(potentialMatchJ - lookBack, min(potentialMatchJ + lookAhead, len(badWordObjs)-1)):
-			if potentialJ not in foundGoodMatchForTheseBadWords:
-				badWordObj = badWordObjs[potentialJ]
-				if (Levenshtein.ratio(goodWord, badWordObj['word'])) >= 0.7:  # TODO: use score_cutoff to write faster
-					bestJFit = potentialJ
-					break
-		if (bestJFit is None):
-			compromise = badWordObjs[potentialMatchJ+jOffsetForMatchingInDoubt] # we steal the timestamps of a word that should be roughly around here
-			compromise['word'] = goodWord # TODO: avg timestamps for an unknown word
-			if jOffsetForMatchingInDoubt < jOffsetLimit:
-				jOffsetForMatchingInDoubt += 1
-				if (potentialMatchJ + jOffsetForMatchingInDoubt) >= len(badWordObjs) - 1:
-					jOffsetForMatchingInDoubt -= 1
-			compromise['confidence'] = 0.99 # danger: we abuse confidence to write down whether we think this word has been said here
+                for potentialJ in range(potentialMatchJ - lookBack, min(potentialMatchJ + lookAhead, len(badWordObjs)-1)):
+                        if potentialJ not in foundGoodMatchForTheseBadWords:
+                                badWordObj = badWordObjs[potentialJ]
+                                if (Levenshtein.ratio(goodWord, badWordObj['word'])) >= 0.7:  # TODO: use score_cutoff to write faster
+                                        bestJFit = potentialJ
+                                        break
+                if (bestJFit is None):
+                        compromise = badWordObjs[potentialMatchJ+jOffsetForMatchingInDoubt] # we steal the timestamps of a word that should be roughly around here
+                        compromise['word'] = goodWord # TODO: avg timestamps for an unknown word
+                        if jOffsetForMatchingInDoubt < jOffsetLimit:
+                                jOffsetForMatchingInDoubt += 1
+                                if (potentialMatchJ + jOffsetForMatchingInDoubt) >= len(badWordObjs) - 1:
+                                        jOffsetForMatchingInDoubt -= 1
+                        compromise['confidence'] = 0.99 # danger: we abuse confidence to write down whether we think this word has been said here
 
-			# DANGER: if you remove the if-condition in the next line, we get a lot of duplicate good words in the final result, if we can't match them. HOWEVER! There might actually be duplicate good words which we cannot match. Fix the algorithm
-			if len(compromiseSolution) > 0 and compromiseSolution[-1] != compromise: # hotfix as we get way too many duplicates. TODO: find out why we get duplicates for unmatched good words
-				compromiseSolution.append(compromise)
-		else:
-			compromise = badWordObjs[bestJFit] # we steal the timestamps of the matched word
-			compromise['word'] = goodWord
-			compromise['confidence'] = 1 # danger: we abuse confidence to write down whether we think this word has been said here
-			compromiseSolution.append(compromise)
-			foundGoodMatchForTheseBadWords.append(bestJFit)
-			j =  min(bestJFit + 1, len(badWordObjs)-1)
-			jOffsetForMatchingInDoubt = 0 # we snatch this back down, as we are no longer in doubt
+                        # DANGER: if you remove the if-condition in the next line, we get a lot of duplicate good words in the final result, if we can't match them. HOWEVER! There might actually be duplicate good words which we cannot match. Fix the algorithm
+                        if len(compromiseSolution) > 0 and compromiseSolution[-1] != compromise: # hotfix as we get way too many duplicates. TODO: find out why we get duplicates for unmatched good words
+                                compromiseSolution.append(compromise)
+                else:
+                        compromise = badWordObjs[bestJFit] # we steal the timestamps of the matched word
+                        compromise['word'] = goodWord
+                        compromise['confidence'] = 1 # danger: we abuse confidence to write down whether we think this word has been said here
+                        compromiseSolution.append(compromise)
+                        foundGoodMatchForTheseBadWords.append(bestJFit)
+                        j =  min(bestJFit + 1, len(badWordObjs)-1)
+                        jOffsetForMatchingInDoubt = 0 # we snatch this back down, as we are no longer in doubt
 
-	fJson.close()
+        fJson.close()
 
-	pp = pprint.PrettyPrinter(indent=4)
-	# pp.pprint(compromiseSolution)	
-
-
-	ibm_ts_list = []
-	for compromise in compromiseSolution:
-		word = compromise['word']
-		start = compromise['start_time']	
-		end = compromise['end_time']
-		package = [word,start,end]
-		ibm_ts_list.append(package)	
-	pp.pprint(ibm_ts_list)
-
-	ibm_conf_list = []
-	for compromise in compromiseSolution:
-		word = compromise['word']
-		confidence = compromise['confidence']
-		package = [word,confidence]
-		ibm_conf_list.append(package)	
-	# pp.pprint(ibm_conf_list)
+        pp = pprint.PrettyPrinter(indent=4)
+        # pp.pprint(compromiseSolution) 
 
 
-	outputDictionary = [{
-		"result_index" : 0,
-		"results":
-		{
-			"final": [True],
-			"alternatives": [{
-				"transcript": goodChoice,
-				"confidence": 1,
-				"timestamps": ibm_ts_list,
-				"word_confidence": ibm_conf_list
-			}],
-			"word_alternatives": [] # we do not provide alternatives, this is just for compatiblity with ibm
-		}
-	}]
-	# pp.pprint(outputDictionary)
+        ibm_ts_list = []
+        for compromise in compromiseSolution:
+                word = compromise['word']
+                start = compromise['start_time']        
+                end = compromise['end_time']
+                package = [word,start,end]
+                ibm_ts_list.append(package)     
+        pp.pprint(ibm_ts_list)
+
+        ibm_conf_list = []
+        for compromise in compromiseSolution:
+                word = compromise['word']
+                confidence = compromise['confidence']
+                package = [word,confidence]
+                ibm_conf_list.append(package)   
+        # pp.pprint(ibm_conf_list)
 
 
-	outputFileForThis = os.path.basename(timestampPath)
-	outputPathForThis = os.path.join(outputPath, outputFileForThis)
+        outputDictionary = [{
+                "result_index" : 0,
+                "results":
+                {
+                        "final": [True],
+                        "alternatives": [{
+                                "transcript": goodChoice,
+                                "confidence": 1,
+                                "timestamps": ibm_ts_list,
+                                "word_confidence": ibm_conf_list
+                        }],
+                        "word_alternatives": [] # we do not provide alternatives, this is just for compatiblity with ibm
+                }
+        }]
+        # pp.pprint(outputDictionary)
 
-	with open(outputPathForThis, "w") as outfile:
-		json.dump(outputDictionary, outfile)
+
+        outputFileForThis = os.path.basename(timestampPath)
+        outputPathForThis = os.path.join(outputPath, outputFileForThis)
+
+        with open(outputPathForThis, "w") as outfile:
+                json.dump(outputDictionary, outfile)
 
 print("Done! Check results in " + outputPath)
