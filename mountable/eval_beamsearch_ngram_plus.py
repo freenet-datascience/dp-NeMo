@@ -135,7 +135,7 @@ def beam_search_eval(
                 cer_dist = editdistance.eval(target_split_c, pred_split_c)
                 wer_dist_min = min(wer_dist_min, wer_dist)
                 cer_dist_min = min(cer_dist_min, cer_dist)
-
+                score = candidate[0]
                 if candidate_idx == 0:
                     # first candidate
                     wer_dist_first += wer_dist
@@ -143,7 +143,7 @@ def beam_search_eval(
                     if preds_output_file:
                         out_file.write('{}\t{}\n'.format(pred_text, score))
                         logging.info("We o")
-                score = candidate[0]
+                
                 
             wer_dist_best += wer_dist_min
             cer_dist_best += cer_dist_min

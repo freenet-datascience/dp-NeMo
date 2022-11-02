@@ -75,15 +75,7 @@ elif manifestPath is not None:
 elif manifestPath is None:
         print("Good Choices count " + str(len(goodChoices)))
         jsonPaths = [os.path.join(folderPath, str(i) + ".json") for i, _ in enumerate(goodChoices)]
-        soundsLikeList = None
-        if args.sounds_like_csv == None:
-        	logging.info(f"No csv for conversion has been given")
-        else:
-        	f = open(args.sounds_like_csv)
-        	c = csv.reader(f, delimiter = ';')
-        	soundsLikeList = list(c)
-        	logging.info(f"Loading the csv for conversion from '{args.sounds_like_csv}' ...")
-        	print("Using the paths from -f (--folderJson) but without using a manifest. Assuming files are numbered and in same order as in --good")
+        print("Using the paths from -f (--folderJson) but without using a manifest. Assuming files are numbered and in same order as in --good")
 if not os.path.exists(outputPath):
         os.makedirs(outputPath)
 

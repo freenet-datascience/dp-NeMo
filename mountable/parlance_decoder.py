@@ -33,7 +33,7 @@ tokenizer = pickle.load(fileTokenizer)
 
 # fileVocab = open("/workspace/NeMo/mountable/dev_model/outProbsGymondo.txt_vocab.pickle", 'rb')
 fileVocab = open(options.vocab, 'rb')
-parlanceDecodedPath = "/workspace/NeMo/mountable/parlanced/"
+parlanceDecodedPath = options.output
 
 vocab = pickle.load(fileVocab)
 
