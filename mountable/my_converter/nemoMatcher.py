@@ -81,8 +81,6 @@ if not os.path.exists(outputPath):
 
 
 for (lineIndex, goodChoice) in enumerate(goodChoices):
-        if lineIndex != 25:
-                continue
         goodWords = goodChoice.split(" ")
 
         # print("liney is " + str(len(goodChoices)) + " out of " + str(len(jsonPaths)))
