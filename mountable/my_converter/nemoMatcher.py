@@ -81,6 +81,8 @@ if not os.path.exists(outputPath):
 
 
 for (lineIndex, goodChoice) in enumerate(goodChoices):
+        if lineIndex != 25:
+                continue
         goodWords = goodChoice.split(" ")
 
         # print("liney is " + str(len(goodChoices)) + " out of " + str(len(jsonPaths)))
@@ -94,6 +96,7 @@ for (lineIndex, goodChoice) in enumerate(goodChoices):
 
         foundGoodMatchForTheseBadWords = [] # after matching a good word to a bad word, we don't match another good word to it
         # however: when we cannot find a match, we might reuse the timestamps of the bad word 
+        lastAddition = {}
 
         compromiseSolution = []
         for i, goodWord in enumerate(goodWords):
@@ -110,7 +113,7 @@ for (lineIndex, goodChoice) in enumerate(goodChoices):
                                         bestJFit = potentialJ
                                         break
                 if (bestJFit is None):
-                        compromise = badWordObjs[potentialMatchJ+jOffsetForMatchingInDoubt] # we steal the timestamps of a word that should be roughly around here
+                        compromise = badWordObjs[potentialMatchJ+jOffsetForMatchingInDoubt].copy() # we copy the timestamps of a word that should be roughly around here
                         compromise['word'] = goodWord # TODO: avg timestamps for an unknown word
                         if jOffsetForMatchingInDoubt < jOffsetLimit:
                                 jOffsetForMatchingInDoubt += 1
@@ -118,22 +121,23 @@ for (lineIndex, goodChoice) in enumerate(goodChoices):
                                         jOffsetForMatchingInDoubt -= 1
                         compromise['confidence'] = 0.99 # danger: we abuse confidence to write down whether we think this word has been said here
 
-                        # DANGER: if you remove the if-condition in the next line, we get a lot of duplicate good words in the final result, if we can't match them. HOWEVER! There might actually be duplicate good words which we cannot match. Fix the algorithm
-                        if len(compromiseSolution) > 0 and compromiseSolution[-1] != compromise: # hotfix as we get way too many duplicates. TODO: find out why we get duplicates for unmatched good words
-                                compromiseSolution.append(compromise)
+                        compromiseSolution.append(compromise)
+                        lastAddition = compromise
                 else:
                         compromise = badWordObjs[bestJFit] # we steal the timestamps of the matched word
                         compromise['word'] = goodWord
                         compromise['confidence'] = 1 # danger: we abuse confidence to write down whether we think this word has been said here
                         compromiseSolution.append(compromise)
+                        lastAddition = compromise
                         foundGoodMatchForTheseBadWords.append(bestJFit)
                         j =  min(bestJFit + 1, len(badWordObjs)-1)
                         jOffsetForMatchingInDoubt = 0 # we snatch this back down, as we are no longer in doubt
 
+
         fJson.close()
 
         pp = pprint.PrettyPrinter(indent=4)
-        # pp.pprint(compromiseSolution) 
+        pp.pprint(compromiseSolution) 
 
 
         ibm_ts_list = []
@@ -143,7 +147,7 @@ for (lineIndex, goodChoice) in enumerate(goodChoices):
                 end = compromise['end_time']
                 package = [word,start,end]
                 ibm_ts_list.append(package)     
-        pp.pprint(ibm_ts_list)
+        # pp.pprint(ibm_ts_list)
 
         ibm_conf_list = []
         for compromise in compromiseSolution:
