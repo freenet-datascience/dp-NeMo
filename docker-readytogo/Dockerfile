@@ -75,6 +75,5 @@ WORKDIR /workspace/NeMo/
 # RUN pip3 install git+https://github.com/parlance/ctcdecode.git
 RUN  git clone --recursive https://github.com/parlance/ctcdecode.git
 WORKDIR /workspace/NeMo/ctcdecode/
-
-WORKDIR /workspace/NeMo/ctcdecode/
-# RUN pip3 install . # this only works in container for whatever reason
+RUN pip3 install --upgrade pip && \
+  pip3 install . # this only works in container for whatever reason
