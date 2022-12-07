@@ -134,8 +134,8 @@ for (lineIndex, goodChoice) in enumerate(goodChoices):
 
         fJson.close()
 
-        pp = pprint.PrettyPrinter(indent=4)
-        pp.pprint(compromiseSolution) 
+        #pp = pprint.PrettyPrinter(indent=4)
+        #pp.pprint(compromiseSolution) 
 
 
         ibm_ts_list = []

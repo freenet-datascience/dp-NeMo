@@ -242,9 +242,6 @@ def blank_reinserter(transcript, result):
     return(output_dict)
 
 for idx, dataProbs in enumerate(allDataProbs):
-
-    print()
-    print(idx)
     df = pandas.DataFrame(dataProbs)
     # df.to_csv("hypotheses.csv")
 

@@ -142,7 +142,6 @@ def beam_search_eval(
                     cer_dist_first += cer_dist
                     if preds_output_file:
                         out_file.write('{}\t{}\n'.format(pred_text, score))
-                        logging.info("We o")
                 
                 
             wer_dist_best += wer_dist_min
