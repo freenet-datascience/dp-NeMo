@@ -72,8 +72,7 @@ RUN python3 -m pip install dill levenshtein  --no-cache-dir
 # install parlance
 WORKDIR /workspace/NeMo/
 
-# RUN pip3 install git+https://github.com/parlance/ctcdecode.git
 RUN  git clone --recursive https://github.com/parlance/ctcdecode.git
 WORKDIR /workspace/NeMo/ctcdecode/
 RUN pip3 install --upgrade pip && \
-  pip3 install . # this only works in container for whatever reason
+  pip3 install .
