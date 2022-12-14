@@ -28,5 +28,5 @@ with fileinput.FileInput(fileToReplaceIn, inplace=True, backup='.bak') as file:
                         elif changeToSoundsLike == "result":
                             line = line.replace(firstSoundsLike, row[0])
                         line_count += 1
-                print(line, end='')  # this is vital: prints to the line
+        print(line, end='')  # this is vital: prints to the line
 print("done!")
