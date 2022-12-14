@@ -5,6 +5,8 @@ import sys
 
 fileToReplaceIn = sys.argv[1]
 changeToSoundsLike = sys.argv[2] # use 'train' for training data. Words get replaced with their soundslike.
+pathToSoundsLikeCsv = sys.argv[3]
+
 # use 'result' for conversion from NeMo transcript to useable transcript for use
 if changeToSoundsLike != "train" and changeToSoundsLike != "result":
     print("Second argument must be 'train' or 'result'!")
@@ -12,7 +14,7 @@ if changeToSoundsLike != "train" and changeToSoundsLike != "result":
 
 with fileinput.FileInput(fileToReplaceIn, inplace=True, backup='.bak') as file:
     for line in file:
-        with open('/workspace/NeMo/mountable/my_converter/custom_words_nemo.csv') as csv_file:
+        with open(pathToSoundsLikeCsv) as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=';')
             line_count = 0
             for row in csv_reader:
@@ -26,5 +28,5 @@ with fileinput.FileInput(fileToReplaceIn, inplace=True, backup='.bak') as file:
                         elif changeToSoundsLike == "result":
                             line = line.replace(firstSoundsLike, row[0])
                         line_count += 1
-            # print(line, end='') 
+                print(line, end='')  # this is vital: prints to the line
 print("done!")
