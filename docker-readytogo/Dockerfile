@@ -1,13 +1,13 @@
 #
 # This example Dockerfile illustrates a method to install
 # additional packages on top of NVIDIA's PyTorch container image.
+# We further add everything needed for NeMo & parlance transcription
 #
 # To use this Dockerfile, use the `docker build` command.
 # See https://docs.docker.com/engine/reference/builder/
 # for more information.
 #
-# Magnus: This works, but does not yet include the pytorch audio installation
-# FROM nvcr.io/nvidia/pytorch:22.08-py3
+
 FROM ubuntu:jammy-20221003
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
@@ -17,14 +17,6 @@ RUN apt-get update && \
 RUN pip3 install --upgrade pip 
 RUN pip3 install wheel cython pesq --no-cache-dir
 
-#  #
-# COPY reinstall.sh /tmp/
-# COPY setup.cfg /tmp/
-# COPY setup.py  /tmp/
-# COPY nemo /tmp/nemo/
-# COPY requirements /tmp/requirements/
-# WORKDIR /tmp/
-# RUN ./reinstall.sh
 
 WORKDIR /workspace/
 
@@ -72,7 +64,7 @@ RUN python3 -m pip install dill levenshtein  --no-cache-dir
 # install parlance
 WORKDIR /workspace/NeMo/
 
-RUN  git clone --recursive https://github.com/parlance/ctcdecode.git
+RUN git clone --recursive https://github.com/parlance/ctcdecode.git
 WORKDIR /workspace/NeMo/ctcdecode/
 RUN pip3 install --upgrade pip && \
   pip3 install .
