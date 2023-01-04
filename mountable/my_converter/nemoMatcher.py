@@ -111,14 +111,14 @@ for (lineIndex, goodChoice) in enumerate(goodChoices):
                                         bestJFit = potentialJ
                                         break
                 if (bestJFit is None):
-                        compromise = badWordObjs[potentialMatchJ+jOffsetForMatchingInDoubt].copy() # we copy the timestamps of a word that should be roughly around here
                         compromise['word'] = goodWord # TODO: avg timestamps for an unknown word
+                        compromiseIdGuess = min(potentialMatchJ+jOffsetForMatchingInDoubt, len(badWordObjs) - 1)
+                        compromise = badWordObjs[compromiseIdGuess].copy() # we copy the timestamps of a word that should be roughly around here
                         if jOffsetForMatchingInDoubt < jOffsetLimit:
                                 jOffsetForMatchingInDoubt += 1
                                 if (potentialMatchJ + jOffsetForMatchingInDoubt) >= len(badWordObjs) - 1:
                                         jOffsetForMatchingInDoubt -= 1
                         compromise['confidence'] = 0.99 # danger: we abuse confidence to write down whether we think this word has been said here
-
                         compromiseSolution.append(compromise)
                         lastAddition = compromise
                 else:
