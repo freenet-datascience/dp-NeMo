@@ -293,10 +293,11 @@ def main():
             @contextlib.contextmanager
             def autocast():
                 yield
-
+        logging.info(f"Now calling asr_model.transcribe to calculate logits")
         with autocast():
             with torch.no_grad():
                 all_logits = asr_model.transcribe(audio_file_paths, batch_size=args.acoustic_batch_size, logprobs=True)
+        logging.info(f"Now calculating probs based on logits")
         all_probs = [kenlm_utils.softmax(logits) for logits in all_logits]
         if args.probs_cache_file:
             logging.info(f"Writing pickle files of probabilities at '{args.probs_cache_file}'...")
