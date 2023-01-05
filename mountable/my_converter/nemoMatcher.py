@@ -87,8 +87,6 @@ for (lineIndex, goodChoice) in enumerate(goodChoices):
         timestampPath = jsonPaths[lineIndex] # we use the matching line
         fJson = open(timestampPath)
         badWordObjs = json.load(fJson)['words']
-        if (len(badWordObjs) == 0)
-            print("No timestamped words found in " + timestampPath + " which is lineIndex " + lineIndex)
         j = 0
         jOffsetForMatchingInDoubt = 0
         lookAhead = 4
@@ -99,40 +97,43 @@ for (lineIndex, goodChoice) in enumerate(goodChoices):
         lastAddition = {}
 
         compromiseSolution = []
-        for i, goodWord in enumerate(goodWords):
-                if i - j > lookAhead:
-                        j = min(j + lookAhead, len(badWordObjs)-1) # we need to snap ahead in case we can't match a string of badWords
-                        jOffsetForMatchingInDoubt = 0 # we snatch this back down, as we are unlikely to exhaust timestamp candidates right now
-                potentialMatchJ = j
-                bestJFit = None
-
-                for potentialJ in range(potentialMatchJ - lookBack, min(potentialMatchJ + lookAhead, len(badWordObjs)-1)):
-                        if potentialJ not in foundGoodMatchForTheseBadWords:
-                                badWordObj = badWordObjs[potentialJ]
-                                if (Levenshtein.ratio(goodWord, badWordObj['word'])) >= 0.7:  # TODO: use score_cutoff to write faster
-                                        bestJFit = potentialJ
-                                        break
-                if (bestJFit is None):
-                        
-                        compromiseIdGuess = min(potentialMatchJ+jOffsetForMatchingInDoubt, len(badWordObjs) - 1)
-                        compromise = badWordObjs[compromiseIdGuess].copy() # we copy the timestamps of a word that should be roughly around here
-                        compromise['word'] = goodWord # TODO: avg timestamps for an unknown word
-                        if jOffsetForMatchingInDoubt < jOffsetLimit:
-                                jOffsetForMatchingInDoubt += 1
-                                if (potentialMatchJ + jOffsetForMatchingInDoubt) >= len(badWordObjs) - 1:
-                                        jOffsetForMatchingInDoubt -= 1
-                        compromise['confidence'] = 0.99 # danger: we abuse confidence to write down whether we think this word has been said here
-                        compromiseSolution.append(compromise)
-                        lastAddition = compromise
-                else:
-                        compromise = badWordObjs[bestJFit] # we steal the timestamps of the matched word
-                        compromise['word'] = goodWord
-                        compromise['confidence'] = 1 # danger: we abuse confidence to write down whether we think this word has been said here
-                        compromiseSolution.append(compromise)
-                        lastAddition = compromise
-                        foundGoodMatchForTheseBadWords.append(bestJFit)
-                        j =  min(bestJFit + 1, len(badWordObjs)-1)
-                        jOffsetForMatchingInDoubt = 0 # we snatch this back down, as we are no longer in doubt
+        if len(badWordObjs) == 0:
+            print("No timestamped words found in " + str(timestampPath) + " which is lineIndex " + str(lineIndex))
+        else:
+            for i, goodWord in enumerate(goodWords):
+                    if i - j > lookAhead:
+                            j = min(j + lookAhead, len(badWordObjs)-1) # we need to snap ahead in case we can't match a string of badWords
+                            jOffsetForMatchingInDoubt = 0 # we snatch this back down, as we are unlikely to exhaust timestamp candidates right now
+                    potentialMatchJ = j
+                    bestJFit = None
+    
+                    for potentialJ in range(potentialMatchJ - lookBack, min(potentialMatchJ + lookAhead, len(badWordObjs)-1)):
+                            if potentialJ not in foundGoodMatchForTheseBadWords:
+                                    badWordObj = badWordObjs[potentialJ]
+                                    if (Levenshtein.ratio(goodWord, badWordObj['word'])) >= 0.7:  # TODO: use score_cutoff to write faster
+                                            bestJFit = potentialJ
+                                            break
+                    if (bestJFit is None):
+                            
+                            compromiseIdGuess = min(potentialMatchJ+jOffsetForMatchingInDoubt, len(badWordObjs) - 1)
+                            compromise = badWordObjs[compromiseIdGuess].copy() # we copy the timestamps of a word that should be roughly around here
+                            compromise['word'] = goodWord # TODO: avg timestamps for an unknown word
+                            if jOffsetForMatchingInDoubt < jOffsetLimit:
+                                    jOffsetForMatchingInDoubt += 1
+                                    if (potentialMatchJ + jOffsetForMatchingInDoubt) >= len(badWordObjs) - 1:
+                                            jOffsetForMatchingInDoubt -= 1
+                            compromise['confidence'] = 0.99 # danger: we abuse confidence to write down whether we think this word has been said here
+                            compromiseSolution.append(compromise)
+                            lastAddition = compromise
+                    else:
+                            compromise = badWordObjs[bestJFit] # we steal the timestamps of the matched word
+                            compromise['word'] = goodWord
+                            compromise['confidence'] = 1 # danger: we abuse confidence to write down whether we think this word has been said here
+                            compromiseSolution.append(compromise)
+                            lastAddition = compromise
+                            foundGoodMatchForTheseBadWords.append(bestJFit)
+                            j =  min(bestJFit + 1, len(badWordObjs)-1)
+                            jOffsetForMatchingInDoubt = 0 # we snatch this back down, as we are no longer in doubt
 
 
         fJson.close()

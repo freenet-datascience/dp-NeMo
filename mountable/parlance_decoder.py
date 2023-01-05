@@ -87,18 +87,18 @@ TIME_PAD = 1
 def beam_decoder(beam_results, beam_scores, timesteps, out_lens, chunk_pad):
     # probs = softmax(logits)
     # probs_seq = torch.FloatTensor(probs)
-    
+
     # beam_results, beam_scores, timesteps, out_lens = self.beam_search_lm.decode(probs_seq.unsqueeze(0))
-    
-    
+
+
     beam_res = beam_results[0][0][:out_lens[0][0]].cpu().numpy()
     times = timesteps[0][0][:out_lens[0][0]].cpu().numpy()
     lens = out_lens[0][0]
-    
+
     transcript = tokenizer(beam_res)
     # print(transcript)
     wordConcat = ""
-    
+
     if len(times) > 0:
         if times[0] < TIME_PAD:
             start = chunk_pad
@@ -106,25 +106,25 @@ def beam_decoder(beam_results, beam_scores, timesteps, out_lens, chunk_pad):
         else:
             start = (times[0] - TIME_PAD) * TIME_STEP + chunk_pad
             end = (times[0] + TIME_PAD) * TIME_STEP + chunk_pad
-            
+
         tocken_prev = labels[int(beam_res[0])]
         word = tocken_prev
 
         translated_word = tokenizer(int(beam_res[0]))
-        
-        
+
+
 
         result = []
-        
+
         for n in range(1,lens):
 
             tocken = labels[int(beam_res[n])]
-            
+
             # print(tocken + " is #" + str(int(beam_res[n])))
             if tocken[0] == "#":
                 word = word + tocken[2:]
                 print("token started with #")
-                
+
             elif tocken[0] == "-" or tocken_prev[0] == "-":
                 word = word + tocken
                 print("token or previous token started with -")
@@ -141,28 +141,28 @@ def beam_decoder(beam_results, beam_scores, timesteps, out_lens, chunk_pad):
 
                 wordConcat += translated_word
                 result.append(result_word)
-                
+
                 if times[n] < TIME_PAD:
                     start = chunk_pad
                 else:
                     start = (times[n] - TIME_PAD) * TIME_STEP + chunk_pad
 
                 word = tocken
-                
-                
+
+
             if times[n] < TIME_PAD:
                 end = (times[n] + TIME_PAD*2) * TIME_STEP + chunk_pad
             else:
                 end = (times[n] + TIME_PAD) * TIME_STEP + chunk_pad
-            
+
             tocken_prev = tocken
-            
-            
+
+
         if start > end:
             result_word = { 'start': round(end, 3), 'end': round(start, 3), 'word': word, 'translatedWord': translated_word }
         else:
             result_word = { 'start': round(start, 3), 'end': round(end, 3), 'word': word, ' translatedWord': translated_word}
-        
+
         wordConcat += translated_word
         result.append(result_word)
     else:
@@ -199,7 +199,7 @@ def blank_reinserter(transcript, result):
 
     skip_n_steps = 0
 
-    
+
     result_filtered = [x for x in result if ('translatedWord' in x and len(x['translatedWord']) > 0)] # if we want to go by the letter in the transcript, we cannot have empty translatedWords
     #TODO: investigate why we ever get a empty translatedWord
 
@@ -212,7 +212,7 @@ def blank_reinserter(transcript, result):
             # print(letter + " skip")
             skip_n_steps -= 1
             continue
-        
+
         if (i_in_results >= len(result_filtered)) or letter == ' ':
             result_good = {'start_time': start_in_progress, 'end_time': end_in_progress, 'word': word_in_progress}
             # print(word_in_progress)
@@ -222,7 +222,7 @@ def blank_reinserter(transcript, result):
             expecting_new_word = True
 
         else:
-            
+
             current_result = result_filtered[i_in_results]
             jump_size = max(0, len(current_result['translatedWord'])-1) # we might get "und" in the results, and thus we need to fit the words we found
             # print(letter + " vs " + current_result['translatedWord'] + " jump " + str(jump_size))
@@ -233,7 +233,7 @@ def blank_reinserter(transcript, result):
             end_in_progress = current_result['end']
             i_in_results += 1
             skip_n_steps = jump_size
-            
+
 
     # print("final result")
     # print(result_words)
@@ -254,7 +254,7 @@ for idx, dataProbs in enumerate(allDataProbs):
     outPath = os.path.join(parlanceDecodedPath, (str(idx)+".json"))
     with open(outPath, "w") as outfile:
         json.dump(resultDict, outfile)
-    
+
 
 # import inspect
 # lines = inspect.getsource(tokenizer)
