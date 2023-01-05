@@ -87,6 +87,8 @@ for (lineIndex, goodChoice) in enumerate(goodChoices):
         timestampPath = jsonPaths[lineIndex] # we use the matching line
         fJson = open(timestampPath)
         badWordObjs = json.load(fJson)['words']
+        if (len(badWordObjs) == 0)
+            print("No timestamped words found in " + timestampPath + " which is lineIndex " + lineIndex)
         j = 0
         jOffsetForMatchingInDoubt = 0
         lookAhead = 4
@@ -111,9 +113,10 @@ for (lineIndex, goodChoice) in enumerate(goodChoices):
                                         bestJFit = potentialJ
                                         break
                 if (bestJFit is None):
-                        compromise['word'] = goodWord # TODO: avg timestamps for an unknown word
+                        
                         compromiseIdGuess = min(potentialMatchJ+jOffsetForMatchingInDoubt, len(badWordObjs) - 1)
                         compromise = badWordObjs[compromiseIdGuess].copy() # we copy the timestamps of a word that should be roughly around here
+                        compromise['word'] = goodWord # TODO: avg timestamps for an unknown word
                         if jOffsetForMatchingInDoubt < jOffsetLimit:
                                 jOffsetForMatchingInDoubt += 1
                                 if (potentialMatchJ + jOffsetForMatchingInDoubt) >= len(badWordObjs) - 1:
