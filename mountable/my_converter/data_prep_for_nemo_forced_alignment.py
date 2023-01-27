@@ -14,8 +14,9 @@
 
 import json
 import os
+import pandas
+import numpy as np
 
-import pickle
 import soundfile as sf
 import torch
 from utils.constants import BLANK_TOKEN, SPACE_TOKEN, V_NEGATIVE_NUM
@@ -82,19 +83,17 @@ def get_manifest_lines_batch(manifest_filepath, start, end):
                 manifest_lines_batch.append(json.loads(line))
     return manifest_lines_batch
   
-def get_relevant_probs_batch(probs_batch, start, end):
-    manifest_lines_batch = []
-    with open(manifest_filepath, "r") as f:
-        for line_i, line in enumerate(f):
-            if line_i == start and line_i == end:
-                manifest_lines_batch.append(json.loads(line))
-                break
+def get_relevant_probs_batch(all_probs, start, end):
+    relevant_probs_batch = []
 
-            if line_i == end:
-                break
-            if line_i >= start:
-                manifest_lines_batch.append(json.loads(line))
-    return manifest_lines_batch
+    for line_i, one_prob in enumerate(all_probs):
+      if line_i == start and line_i == end:
+        relevant_probs_batch.append(one_prob)
+      if line_i == end:
+        break
+      if line_i >= start:
+        relevant_probs_batch.append(one_prob)
+    return relevant_probs_batch
 
 
 def get_char_tokens(text, model):
@@ -298,7 +297,7 @@ def get_y_and_boundary_info_for_utt(text, model, separator):
         raise RuntimeError("Cannot get tokens of this model.")
 
 
-def get_batch_tensors_and_boundary_info(manifest_lines_batch, model, separator, align_using_pred_text, probs_batch = None):
+def get_batch_tensors_and_boundary_info(manifest_lines_batch, model, separator, align_using_pred_text, precalculated_probs = None):
     """
     Returns:
         log_probs, y, T, U (y and U are s.t. every other token is a blank) - these are the tensors we will need
@@ -307,34 +306,35 @@ def get_batch_tensors_and_boundary_info(manifest_lines_batch, model, separator, 
             for writing the CTM files with the human-readable alignments.
         pred_text_list - this is a list of the transcriptions from our model which we will save to our output JSON
             file if align_using_pred_text is True.
+            
     """
-
-    # get hypotheses by calling 'transcribe'
-    # we will use the output log_probs, the duration of the log_probs,
-    # and (optionally) the predicted ASR text from the hypotheses
+    # if precalculated_probs is None
+    #   get hypotheses by calling 'transcribe'
+    #   we will use the output log_probs, the duration of the log_probs,
+    #   and (optionally) the predicted ASR text from the hypotheses
+    # else we will read the precalculated_probs to save computational time
     audio_filepaths_batch = [line["audio_filepath"] for line in manifest_lines_batch]
     B = len(audio_filepaths_batch)
-    #with torch.no_grad():
-    #    hypotheses = model.transcribe(audio_filepaths_batch, return_hypotheses=True, batch_size=B)
-    probsPath = '/workspace/NeMo//mountable/2023-01-21-71599-0-LEFTAUDIO.json/probs_2023-01-21-71599-0-LEFTAUDIO.json.pickle' # hardcoded to test something
-    file = open(probsPath, 'rb')
-
-    # take information of that file
+    
     hypotheses = pickle.load(file)
     log_probs_list_batch = []
     T_list_batch = []
     pred_text_batch = []
-    import pandas
-    import numpy as np
-    for i, hypothesis in enumerate(hypotheses):
-        if (i > 0):
-            break
+    
+    if(precalculated_probs is None:
+      with torch.no_grad():
+        hypotheses = model.transcribe(audio_filepaths_batch, return_hypotheses=True, batch_size=B)
+      for hypothesis in hypotheses:
+        log_probs_list_batch.append(hypothesis.y_sequence)
+        T_list_batch.append(hypothesis.y_sequence.shape[0])
+        pred_text_batch.append(hypothesis.text)
+    else:
+      for hypothesis in precalculated_probs:
         hypothesis = pandas.DataFrame(hypothesis)
         hypothesis = torch.from_numpy(hypothesis.to_numpy())
         log_probs_list_batch.append(hypothesis)
         T_list_batch.append(hypothesis.shape[0])
-        pred_text_batch.append("dummy output ignore please")
-        #pred_text_batch.append(hypothesis.text)
+        pred_text_batch.append("SET PRECALCULATED_PROBS=None TO GET PRED_TEXT")
 
     # we loop over every line in the manifest that is in our current batch,
     # and record the y (list of tokens, including blanks), U (list of lengths of y) and
