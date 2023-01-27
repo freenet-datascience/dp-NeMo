@@ -321,7 +321,7 @@ def get_batch_tensors_and_boundary_info(manifest_lines_batch, model, separator, 
     T_list_batch = []
     pred_text_batch = []
     
-    if(precalculated_probs is None:
+    if precalculated_probs is None:
       with torch.no_grad():
         hypotheses = model.transcribe(audio_filepaths_batch, return_hypotheses=True, batch_size=B)
       for hypothesis in hypotheses:
