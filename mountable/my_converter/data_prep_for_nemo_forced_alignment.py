@@ -366,16 +366,10 @@ def get_batch_tensors_and_boundary_info(manifest_lines_batch, model, separator, 
     V = len(model.decoder.vocabulary) + 1
     T_batch = torch.tensor(T_list_batch)
     U_batch = torch.tensor(U_list_batch)
-    print("B is " + str(B))
-    print("T max is " + str(T_max))
-    print("V is " + str(V))
-    print(str(audio_filepaths_batch))
     # make log_probs_batch tensor of shape (B x T_max x V)
     log_probs_batch = V_NEGATIVE_NUM * torch.ones((B, T_max, V))
-    print("Log probs batch shape " + str(log_probs_batch.shape))
     for b, log_probs_utt in enumerate(log_probs_list_batch):
         t = log_probs_utt.shape[0]
-        print(b)
 
         log_probs_batch[b, :t, :] = log_probs_utt
 
