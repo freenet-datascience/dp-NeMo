@@ -15,6 +15,7 @@
 import os
 from dataclasses import dataclass, is_dataclass
 from typing import Optional
+import pickle
 
 import torch
 from omegaconf import OmegaConf
@@ -22,6 +23,7 @@ from utils.data_prep import (
     get_batch_starts_ends,
     get_batch_tensors_and_boundary_info,
     get_manifest_lines_batch,
+    get_relevant_probs_batch,
     is_entry_in_all_lines,
     is_entry_in_any_lines,
 )
@@ -100,6 +102,7 @@ class AlignmentConfig:
 
     # General configs
     align_using_pred_text: bool = False
+    probs_pickle_path: Optional[str] = None
     transcribe_device: Optional[str] = None
     viterbi_device: Optional[str] = None
     batch_size: int = 1
@@ -150,6 +153,11 @@ def main(cfg: AlignmentConfig):
         )
 
     if cfg.align_using_pred_text:
+        if cfg.probs_pickle_path is not None:
+            raise RuntimeError(
+                    "Cannot specify cfg.align_using_pred_text=True when you supply cfg.probs_pickle_path."
+                    "This is because the existing probs are used to skip the transcribe process entirely."
+                    )
         if is_entry_in_any_lines(cfg.manifest_filepath, "pred_text"):
             raise RuntimeError(
                 "Cannot specify cfg.align_using_pred_text=True when the manifest at cfg.manifest_filepath "
@@ -168,8 +176,10 @@ def main(cfg: AlignmentConfig):
         transcribe_device = torch.device("cuda" if torch.cuda.is_available else "cpu")
     else:
         transcribe_device = torch.device(cfg.transcribe_device)
-    logging.info(f"Device to be used for transcription step (`transcribe_device`) is {transcribe_device}")
-
+    if cfg.probs_pickle_path is None:
+        logging.info(f"Device to be used for transcription step (`transcribe_device`) is {transcribe_device}")
+    else:
+        logging.info(f"No device to be used for transcription step, as we take the probs (`probs_pickle_path`) from {cfg.probs_pickle_path}")
     if cfg.viterbi_device is None:
         viterbi_device = torch.device("cuda" if torch.cuda.is_available else "cpu")
     else:
@@ -208,7 +218,7 @@ def main(cfg: AlignmentConfig):
 
     all_probs = None
     if cfg.probs_pickle_path is not  None:
-        with open(cfg.probs_pickle_path, 'r') as pickle_file:
+        with open(cfg.probs_pickle_path, 'rb') as pickle_file:
             all_probs = pickle.load(pickle_file)
     # get alignment and save in CTM batch-by-batch
     for start, end in zip(starts, ends):

@@ -316,7 +316,6 @@ def get_batch_tensors_and_boundary_info(manifest_lines_batch, model, separator, 
     audio_filepaths_batch = [line["audio_filepath"] for line in manifest_lines_batch]
     B = len(audio_filepaths_batch)
     
-    hypotheses = pickle.load(file)
     log_probs_list_batch = []
     T_list_batch = []
     pred_text_batch = []
