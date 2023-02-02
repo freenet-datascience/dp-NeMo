@@ -38,7 +38,7 @@ RUN pip3 install -e .
 
 WORKDIR /workspace/NeMo/scripts/asr_language_modeling/ngram_lm
 RUN git clone --single-branch -b ctc-decoders https://github.com/NVIDIA/OpenSeq2Seq
-RUN mv OpenSeq2Seq/decoders .
+RUN cp -r OpenSeq2Seq/decoders .
 RUN rm -r OpenSeq2Seq
 WORKDIR /workspace/NeMo/scripts/asr_language_modeling/ngram_lm/decoders
 # kenlm
@@ -56,15 +56,8 @@ RUN tar -xzvf openfst-1.6.3.tar.gz
 RUN git clone https://github.com/progschj/ThreadPool.git
 
 RUN python3 setup.py install --num_processes 4
+
+
+RUN python3 -m pip install -r /workspace/NeMo/tools/nemo_forced_aligner/requirements.txt
 WORKDIR /workspace/NeMo/scripts/asr_language_modeling/ngram_lm
 
-# these packages are required for diarization
-RUN python3 -m pip install dill levenshtein  --no-cache-dir
-
-# install parlance
-WORKDIR /workspace/NeMo/
-
-RUN git clone --recursive https://github.com/parlance/ctcdecode.git
-WORKDIR /workspace/NeMo/ctcdecode/
-RUN pip3 install --upgrade pip && \
-  pip3 install .
