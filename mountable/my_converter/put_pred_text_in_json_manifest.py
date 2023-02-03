@@ -13,7 +13,7 @@ def main():
     parser.add_option("-p", "--preds", dest = "preds",
     help= "Path of the 'preds' file containing the results, with each number corresponding to a mp3", default = None)
     parser.add_option("-r", "--result", dest = "result",
-    help= "Path of the 'result' file containing the original manifest, but this time with text set to the preds", default = None)
+    help= "Path of the 'result' file containing a changed manifest, but this time with text set to the preds", default = None)
     
     (options, args) = parser.parse_args()
     audio_file_paths = []
