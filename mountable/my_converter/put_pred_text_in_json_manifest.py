@@ -16,7 +16,6 @@ def main():
     help= "Path of the 'result' file containing a changed manifest, but this time with text set to the preds", default = None)
     
     (options, args) = parser.parse_args()
-    audio_file_paths = []
     predPath = options.preds
     predTxt = re.sub(r'-[0-9.]*\b', "", Path(predPath).read_text())
     predLines = [x for x in predTxt.split("\n") if x != ""]
