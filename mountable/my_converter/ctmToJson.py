@@ -78,7 +78,7 @@ with open(manifestPath, 'r') as manifest_file:
                 second_value = segments[1]
                 start_ts = segments[2]
                 duration = segments[3]
-                end_ts = float(start_ts)+float(duration)
+                end_ts = round(float(start_ts)+float(duration), 2) # we do not get more precision than two digits from NeMo
                 word = segments[4]
                 solution = {'word': word,
                     'start_time': start_ts,
