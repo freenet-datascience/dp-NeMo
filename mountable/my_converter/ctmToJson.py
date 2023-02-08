@@ -10,7 +10,7 @@ from tqdm.auto import tqdm
 
 parser = OptionParser()
 parser.add_option("-m", "--manifest", dest = "manifest", help="Alternative to --timestamps. The nemo manifest used to create the timestamps.", default = None)
-parser.add_option("-o", "--outputDefault", dest = "outputDefault", help = "path for the output default, if no archfolder field is provided in the manifest")
+parser.add_option("-o", "--outputDefault", dest = "outputDefault", help = "path for the output default, if no result_folder field is provided in the manifest")
 
 
 (options, args) = parser.parse_args()
@@ -59,15 +59,15 @@ else:
         )
 
 if outputPathDefault is None:
-    if not is_entry_in_all_lines(manifestPath, "archfolder"):
+    if not is_entry_in_all_lines(manifestPath, "result_folder"):
             raise RuntimeError(
-                "At least one line in manifest does not contain an 'archfolder' entry."
+                "At least one line in manifest does not contain an 'result_folder' entry."
                 "But you did not provide a --outputDefault."
-                "Please add archfolder to all manifest lines, or give a outputDefault."
+                "Please add result_folder to all manifest lines, or give a outputDefault."
             )
     else:
-        print("You did not provide a outputDefault, but all manifest lines have an archfolder.")
-        print("We will put each report in the corresponding archfolder.")
+        print("You did not provide a outputDefault, but all manifest lines have an result_folder.")
+        print("We will put each report in the corresponding result_folder.")
 
 usedOverwrites = set()
 neverUsedDefaultFolder = True
@@ -126,10 +126,10 @@ with open(manifestPath, 'r') as manifest_file:
             
             outputFileForThis = os.path.basename(word_level_ctm_file_path)
             outputPathForThis = outputPathDefault
-            if 'archfolder' in data:
-                outputPathForThis = data['archfolder'] # if we find a given archfolder in the manifest, we overwrite the given default folder
-                # this allows us to mix different archfolders in the same manifest
-                usedOverwrites.add(data['archfolder'])
+            if 'result_folder' in data:
+                outputPathForThis = data['result_folder'] # if we find a given result_folder in the manifest, we overwrite the given default folder
+                # this allows us to mix different result_folders in the same manifest
+                usedOverwrites.add(data['result_folder'])
             else:
                 neverUsedDefaultFolder = False
             fullOutputPathForThis = os.path.join(outputPathForThis, outputFileForThis)
@@ -138,8 +138,8 @@ with open(manifestPath, 'r') as manifest_file:
                     json.dump(outputDictionary, outfile)
 
 if len(usedOverwrites) == 0:
-    print("Done! We did not find 'archfolder' in the manifest lines, so we put all results in the provided default folder " + outputPathDefault + ". ")
+    print("Done! We did not find 'result_folder' in the manifest lines, so we put all results in the provided default folder " + outputPathDefault + ". ")
 elif neverUsedDefaultFolder:
-    print("Done! Check results in the manifest-provided archfolders: " + str(usedOverwrites) + ". We did not need the default folder.")
+    print("Done! Check results in the manifest-provided result_folder (plural): " + str(usedOverwrites) + ". We did not need the default folder.")
 else:
-    print("Done! Check results both in the manifest-provided archfolders: " + str(usedOverwrites) + " and the default " + outputPathDefault)
+    print("Done! Check results both in the manifest-provided result_folder (plural): " + str(usedOverwrites) + " and the default " + outputPathDefault)
